@@ -85,7 +85,7 @@ async function previewImage(input) {
       const data = await res.json();
       document.getElementById('image-url').value = data.url;
       const preview = document.getElementById('upload-preview');
-      preview.src = API + data.url;
+      preview.src = data.url;
       preview.style.display = 'block';
     } else {
       alert('Image upload failed');
@@ -140,7 +140,7 @@ async function loadPosts() {
       ` : '';
 
       const draftBadge = p.status === 'draft' ? `<span class="draft-badge">Draft</span>` : '';
-      const imageHTML = p.cover_image_url ? `<img src="${API + p.cover_image_url}" class="post-image" alt="Cover Image">` : '';
+      const imageHTML = p.cover_image_url ? `<img src="${p.cover_image_url}" class="post-image" alt="Cover Image">` : '';
       const timeStr = p.created_at ? new Date(p.created_at).toLocaleString() : 'Just now';
 
       return `
@@ -217,7 +217,7 @@ function editPost(id) {
 
   if (post.cover_image_url) {
     document.getElementById('image-url').value = post.cover_image_url;
-    document.getElementById('upload-preview').src = API + post.cover_image_url;
+    document.getElementById('upload-preview').src = post.cover_image_url;
     document.getElementById('upload-preview').style.display = 'block';
   } else {
     document.getElementById('image-url').value = '';
@@ -304,7 +304,7 @@ async function uploadProfileImage(input) {
     if (res.ok) {
       const data = await res.json();
       document.getElementById('profile-avatar-url').value = data.url;
-      document.getElementById('profile-avatar-preview').src = API + data.url;
+      document.getElementById('profile-avatar-preview').src = data.url;
     } else {
       alert('Avatar upload failed');
     }
