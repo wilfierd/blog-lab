@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog - Home</title>
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      margin: 0; 
+      background: var(--bg); 
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 768px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+    }
+    .user-profile { 
+      display: flex; 
+      align-items: center; 
+      gap: 1.5rem; 
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.15rem;
+    }
+    .user-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+    .role-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      line-height: 1;
+      background: var(--primary); /* default */
+    }
+    .user-info img { 
+      width: 40px; 
+      height: 40px; 
+      border-radius: 50%; 
+      object-fit: cover;
+      background: var(--border);
+    }
+    button { 
+      padding: 0.5rem 1rem; 
+      cursor: pointer; 
+      border: 1px solid transparent; 
+      border-radius: 8px; 
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .btn-logout { 
+      background: transparent; 
+      color: var(--text-muted); 
+      border: 1px solid var(--border);
+    }
+    .btn-logout:hover {
+      background: #f9fafb;
+      color: var(--text-main);
+    }
+    .btn-primary { 
+      background: var(--primary); 
+      color: white; 
+      padding: 0.75rem 1.5rem;
+      font-size: 0.95rem;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-primary:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    .btn-grey { 
+      background: #888; 
+      color: white; 
+      padding: 0.75rem 1.5rem;
+      font-size: 0.95rem;
+    }
+    .btn-grey:hover {
+      background: #666;
+    }
+    .editor-section {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+      border: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+    .editor-section h3 {
+      margin: 0 0 1.25rem 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+    input[type="text"], textarea { 
+      width: 100%; 
+      padding: 0.875rem 1rem; 
+      margin-bottom: 1rem; 
+      border: 1px solid var(--border); 
+      border-radius: 8px; 
+      font-size: 1rem; 
+      font-family: inherit;
+      background: #f9fafb;
+      transition: all 0.2s ease;
+    }
+    input[type="text"]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      background: white;
+    }
+    .ql-container {
+      height: 180px;
+      font-size: 1rem;
+      font-family: inherit;
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+    .ql-toolbar {
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+      background: #f9fafb;
+    }
+    .editor-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .file-upload-wrapper {
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+    }
+    .file-upload-wrapper label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    #upload-preview {
+      max-width: 100%;
+      max-height: 150px;
+      margin-top: 0.5rem;
+      display: none;
+      border-radius: 8px;
+    }
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .tab {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      background: white;
+      border: 1px solid var(--border);
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+    .tab.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .tab:hover:not(.active) {
+      background: #f9fafb;
+      color: var(--text-main);
+    }
+    .post-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .post-card { 
+      background: var(--card-bg); 
+      padding: 1.5rem; 
+      border-radius: 12px; 
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .post-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    }
+    .post-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+    .post-meta { 
+      font-size: 0.875rem; 
+      color: var(--text-muted); 
+      display: flex; 
+      align-items: center; 
+      gap: 0.6rem; 
+    }
+    .post-meta img { 
+      width: 32px; 
+      height: 32px; 
+      border-radius: 50%; 
+    }
+    .post-author {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .post-card h2 { 
+      margin: 0 0 0.75rem 0; 
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .post-card p { 
+      margin: 0; 
+      line-height: 1.6;
+      color: #374151;
+      white-space: pre-wrap;
+    }
+    .post-image {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .draft-badge {
+      background: #f59e0b;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+      text-transform: uppercase;
+    }
+    .post-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 4rem 1rem;
+      color: var(--text-muted);
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+    }
+    .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      gap: 0.25rem;
+    }
+    .btn-icon:hover {
+      background: #f9fafb;
+      color: var(--text-main);
+    }
+    .btn-icon.danger:hover {
+      background: #fee2e2;
+      color: #ef4444;
+      border-color: #fca5a5;
+    }
+    
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.4);
+      backdrop-filter: blur(2px);
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: var(--card-bg);
+      padding: 2rem;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 450px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      border: 1px solid var(--border);
+    }
+    .modal-header {
+      margin-bottom: 1.5rem;
+    }
+    .modal-header h2 { margin: 0; font-size: 1.25rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #f9fafb;
+      transition: all 0.2s ease;
+      margin-bottom: 0;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      background: white;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-outline:hover { background: #f9fafb; color: var(--text-main); }
+    
+    /* Optional admin tools area */
+    .admin-panel {
+      display: none; /* hidden by default */
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .admin-panel h4 {
+      margin: 0 0 0.5rem 0;
+      color: #991b1b;
+      font-size: 0.95rem;
+    }
+    .admin-panel p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>My Blog</h1>
+      <div class="user-profile">
+        <div class="user-info" style="cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: background 0.2s;" onclick="openProfileModal()" title="Edit Profile" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+          <img id="avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e5e7eb'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%239ca3af'/%3E%3C/svg%3E" alt="Avatar">
+          <div class="user-details">
+            <span id="username" class="user-name">Guest</span>
+            <span id="role-badge" class="role-badge" style="display: none;">USER</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn-logout" onclick="logout()">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div id="admin-panel" class="admin-panel">
+        <h4>🛠️ Developer / Admin Controls Active</h4>
+        <p>You have elevated privileges. You can manage or moderate content across the blog.</p>
+        <button class="btn-primary" style="margin-top: 1rem; background: #111827;" onclick="window.location.href='admin.html'">Manage Users</button>
+      </div>
+
+      <div class="editor-section">
+        <h3 id="form-title">Create a new post</h3>
+        <input id="title" type="text" placeholder="Title of your post...">
+        <div id="editor"></div>
+        
+        <div class="file-upload-wrapper">
+          <label>Attach cover image:</label>
+          <input type="file" id="image-file" accept="image/*" onchange="previewImage(this)">
+          <img id="upload-preview">
+          <input type="hidden" id="image-url">
+        </div>
+
+        <div class="editor-footer">
+          <button class="btn-primary" onclick="submitPost('published')">Publish Post</button>
+          <button class="btn-grey" onclick="submitPost('draft')">Save as Draft</button>
+          <button class="btn-grey" id="cancel-edit" style="display:none" onclick="cancelEdit()">Cancel</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('published', this)">All Published</div>
+        <div class="tab" onclick="switchTab('my_posts', this)">My Posts</div>
+        <div class="tab" onclick="switchTab('draft', this)">My Drafts</div>
+      </div>
+
+      <div id="posts" class="post-list">
+        <!-- Posts will be injected here -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="modal" id="profile-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Profile</h2>
+      </div>
+      <div class="form-group" style="text-align: center;">
+        <img id="profile-avatar-preview" src="" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 0.75rem; border: 1px solid var(--border); background: var(--bg);">
+        <div style="margin-bottom: 0.5rem;">
+          <label class="btn-outline" style="display: inline-block; cursor: pointer; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+            Upload New Avatar
+            <input type="file" id="profile-avatar-file" accept="image/*" style="display: none;" onchange="uploadProfileImage(this)">
+          </label>
+        </div>
+        <input type="hidden" id="profile-avatar-url">
+      </div>
+      <div class="form-group">
+        <label for="profile-name">Display Name</label>
+        <input type="text" id="profile-name" placeholder="Name">
+      </div>
+      <div class="form-group">
+        <label for="profile-password">New Password (leave blank to keep)</label>
+        <input type="password" id="profile-password" placeholder="••••••••">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeProfileModal()">Cancel</button>
+        <button class="btn-primary" id="save-profile-btn" onclick="saveProfile()">Save Profile</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog - Admin Dashboard</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      margin: 0; 
+      background: var(--bg); 
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+    }
+    header h1 span { color: var(--text-muted); font-weight: 400; font-size: 1.25rem; }
+    .user-profile { 
+      display: flex; 
+      align-items: center; 
+      gap: 1.5rem; 
+    }
+    .btn { 
+      padding: 0.6rem 1.25rem; 
+      cursor: pointer; 
+      border: 1px solid transparent; 
+      border-radius: 8px; 
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .btn-outline { 
+      background: transparent; 
+      color: var(--text-muted); 
+      border: 1px solid var(--border);
+      text-decoration: none;
+    }
+    .btn-outline:hover { background: #f9fafb; color: var(--text-main); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    
+    .table-container {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    th, td {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.95rem;
+    }
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f9fafb; }
+    
+    .role-badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .role-admin { background: #ef4444; }
+    .role-dev { background: #8b5cf6; }
+    .role-user { background: #10b981; }
+
+    .action-btns { display: flex; gap: 0.5rem; }
+    
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.4);
+      backdrop-filter: blur(2px);
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: var(--card-bg);
+      padding: 2rem;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 450px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      border: 1px solid var(--border);
+    }
+    .modal-header {
+      margin-bottom: 1.5rem;
+    }
+    .modal-header h2 { margin: 0; font-size: 1.25rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #f9fafb;
+      transition: all 0.2s ease;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      background: white;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>My Blog <span>/ Admin Dashboard</span></h1>
+      <div class="user-profile">
+        <a href="blog.html" class="btn btn-outline">Back to Blog</a>
+      </div>
+    </header>
+
+    <main>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h2 style="margin: 0; font-size: 1.25rem;">User Management</h2>
+        <button class="btn btn-primary" onclick="openUserModal()">+ Create User</button>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Last Access</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            <!-- Users will be injected here -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- User Modal -->
+  <div class="modal" id="user-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Create User</h2>
+      </div>
+      
+      <input type="hidden" id="user-id">
+      
+      <div class="form-group">
+        <label for="username">Username (cannot edit later)</label>
+        <input type="text" id="username" placeholder="e.g., johndoe" autocomplete="off">
+      </div>
+      
+      <div class="form-group">
+        <label for="name">Display Name</label>
+        <input type="text" id="name" placeholder="John Doe" autocomplete="off">
+      </div>
+      
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="john@example.com" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password <span id="pwd-hint" style="color: var(--text-muted); font-weight: normal; font-size: 0.75rem;"></span></label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+
+      <div class="form-group">
+        <label for="role">Role</label>
+        <select id="role">
+          <option value="user">User</option>
+          <option value="dev">Developer</option>
+          <option value="admin">Administrator</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeUserModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-user-btn" onclick="saveUser()">Save User</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
