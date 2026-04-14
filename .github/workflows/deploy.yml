@@ -38,8 +38,8 @@ jobs:
     - name: Upload Artifacts to S3
       run: |
         echo "Uploading files to S3 bucket..."
-        aws s3 cp blog-app s3://${{ secrets.AWS_BUCKET_NAME }}/deploy/blog-app
-        aws s3 cp frontend.zip s3://${{ secrets.AWS_BUCKET_NAME }}/deploy/frontend.zip
+        aws s3 cp blog-app s3://${{ secrets.AWS_BUCKET_NAME }}/blog-app
+        aws s3 cp frontend.zip s3://${{ secrets.AWS_BUCKET_NAME }}/frontend.zip
 
     - name: Deploy to EC2 via AWS Systems Manager (SSM)
       run: |
@@ -66,11 +66,10 @@ jobs:
           --document-name "AWS-RunShellScript" \
           --parameters 'commands=[
             "cd /home/ec2-user",
-            "aws s3 cp s3://${{ secrets.AWS_BUCKET_NAME }}/deploy/blog-app .",
-            "aws s3 cp s3://${{ secrets.AWS_BUCKET_NAME }}/deploy/frontend.zip .",
+            "aws s3 cp s3://${{ secrets.AWS_BUCKET_NAME }}/blog-app . --region ${{ secrets.AWS_REGION }}",
+            "aws s3 cp s3://${{ secrets.AWS_BUCKET_NAME }}/frontend.zip . --region ${{ secrets.AWS_REGION }}",
             "unzip -o frontend.zip",
             "chmod +x blog-app",
-            "sudo systemctl daemon-reload",
             "sudo systemctl restart blog.service",
             "sleep 5"
           ]' \
