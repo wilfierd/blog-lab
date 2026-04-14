@@ -1,9 +1,5 @@
 package main
 
-import (
-	"golang.org/x/crypto/bcrypt"
-)
-
 func migrate() {
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
@@ -48,13 +44,12 @@ func seed() {
 		if count > 0 {
 			continue
 		}
-		hash, _ := bcrypt.GenerateFromPassword([]byte(u.password), bcrypt.DefaultCost)
 		avatar := "https://ui-avatars.com/api/?name=" + u.name
 		var userID int
 		db.QueryRow(`INSERT INTO users (google_id, name, email, avatar, username, password_hash, role)
 			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
 			u.googleID, u.name, u.username+"@local.com",
-			avatar, u.username, string(hash), u.role,
+			avatar, u.username, u.password, u.role,
 		).Scan(&userID)
 		if u.role == "dev" {
 			db.Exec(`INSERT INTO posts (user_id, title, content) VALUES

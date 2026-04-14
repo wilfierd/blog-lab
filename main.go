@@ -24,10 +24,15 @@ var (
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Note: .env file not found, relying on system environment variables or AWS Secrets Manager")
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	// Fetch secrets from AWS Secrets Manager if a secret name is provided
+	if secretName := os.Getenv("AWS_SECRET_NAME"); secretName != "" {
+		loadSecretsFromAWS(secretName)
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
 		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"),
 		os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"),
 	)
@@ -46,10 +51,15 @@ func main() {
 	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
 	store.Options = &sessions.Options{Path: "/", MaxAge: 86400, HttpOnly: true}
 
+	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
+	if redirectURL == "" {
+		redirectURL = "http://localhost:8080/auth/google/callback"
+	}
+
 	oauthConfig = &oauth2.Config{
 		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		RedirectURL:  "http://localhost:8080/auth/google/callback",
+		RedirectURL:  redirectURL,
 		Scopes:       []string{"openid", "email", "profile"},
 		Endpoint:     google.Endpoint,
 	}
@@ -73,9 +83,11 @@ func main() {
 	r.PUT("/api/posts/:id", authRequired, updatePost)
 	r.DELETE("/api/posts/:id", authRequired, deletePost)
 
-	// Upload
-	r.POST("/api/upload", authRequired, uploadImage)
-	r.Static("/uploads", "./uploads")
+	// Upload & Files (S3 Presigned)
+	r.POST("/api/upload/presign", authRequired, handlePresignUpload)
+	r.GET("/api/files/presign-get", authRequired, handlePresignGet)
+	r.Static("/uploads", "./uploads") // Keep for backward compatibility if needed
+	r.Static("/frontend", "./frontend") // Serve frontend files from EC2 directly
 
 	// Account settings
 	r.GET("/api/me", authRequired, getMyProfile)

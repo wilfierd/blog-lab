@@ -5,7 +5,7 @@ services:
     image: postgres:15-alpine
     container_name: local_postgres
     environment:
-      POSTGRES_USER: admin
+      POSTGRES_USER: admins
       POSTGRES_PASSWORD: secretpassword
       POSTGRES_DB: blogdb
     ports:

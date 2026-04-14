@@ -1,40 +1,53 @@
-const API = "http://localhost:8080";
+// Determine API base URL dynamically or fallback to localhost
+const API = "http://blog-alg-1066533360.us-west-2.elb.amazonaws.com";
 
 let currentUser = null;
-let currentTab = 'published';
+let currentTab = "published";
 let editingPostId = null;
 let quill = null;
 let allPosts = [];
 
 // Initialize Quill Editor if the element exists
 document.addEventListener("DOMContentLoaded", () => {
-  const editorElem = document.getElementById('editor');
+  const editorElem = document.getElementById("editor");
   if (editorElem) {
-    quill = new Quill('#editor', {
-      theme: 'snow',
-      placeholder: 'Share your thoughts...'
+    quill = new Quill("#editor", {
+      theme: "snow",
+      placeholder: "Share your thoughts...",
     });
   }
 });
 
 // Handle authentication & User info on load
-if (window.location.pathname.endsWith("blog.html") || window.location.pathname === "/") {
+if (
+  window.location.pathname.endsWith("blog.html") ||
+  window.location.pathname === "/"
+) {
   fetch(`${API}/auth/me`, { credentials: "include" })
-    .then(r => {
+    .then((r) => {
       if (!r.ok) {
         window.location.href = "index.html";
         return null;
       }
       return r.json();
     })
-    .then(user => {
+    .then(async user => {
       if (!user) return;
       currentUser = user;
 
       document.getElementById("username").textContent = user.name || "User";
+
+      // Resolve avatar
+      let displayAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e5e7eb'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%239ca3af'/%3E%3C/svg%3E";
       if (user.avatar) {
-        document.getElementById("avatar").src = user.avatar;
+        if (user.avatar.startsWith('http') || user.avatar.startsWith('data:')) {
+          displayAvatar = user.avatar;
+        } else {
+          displayAvatar = await getPresignedGetUrl(user.avatar);
+        }
       }
+      document.getElementById("avatar").src = displayAvatar;
+      currentUser.displayAvatar = displayAvatar;
 
       // Role UI logic
       const role = user.role || "user";
@@ -54,44 +67,80 @@ if (window.location.pathname.endsWith("blog.html") || window.location.pathname =
 
       loadPosts();
     })
-    .catch(err => {
+    .catch((err) => {
       console.error("Auth error:", err);
       window.location.href = "index.html";
     });
 }
 
 function switchTab(tab, element) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  element.classList.add('active');
+  document
+    .querySelectorAll(".tab")
+    .forEach((t) => t.classList.remove("active"));
+  element.classList.add("active");
   currentTab = tab;
   loadPosts();
+}
+
+// Utility to get a presigned GET URL for a given key
+async function getPresignedGetUrl(key) {
+  if (!key || key.startsWith('http')) return key;
+  try {
+    const res = await fetch(`${API}/api/files/presign-get?key=${encodeURIComponent(key)}`, { credentials: "include" });
+    if (!res.ok) return key;
+    const data = await res.json();
+    return data.url;
+  } catch (e) {
+    console.error("Failed to get presigned GET url", e);
+    return key;
+  }
 }
 
 async function previewImage(input) {
   const file = input.files[0];
   if (!file) return;
 
-  const formData = new FormData();
-  formData.append('file', file);
-
   try {
-    const res = await fetch(`${API}/api/upload`, {
-      method: 'POST',
-      credentials: 'include',
-      body: formData
+    // 1) Xin presigned URL từ backend
+    const res = await fetch(`${API}/api/upload/presign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type
+      })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      document.getElementById('image-url').value = data.url;
-      const preview = document.getElementById('upload-preview');
-      preview.src = data.url;
-      preview.style.display = 'block';
-    } else {
-      alert('Image upload failed');
+    if (!res.ok) {
+      throw new Error("Cannot get presigned URL");
     }
+
+    const { uploadUrl, key } = await res.json();
+
+    // 2) Upload trực tiếp lên S3
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type
+      },
+      body: file
+    });
+
+    if (!putRes.ok) {
+      throw new Error("Upload to S3 failed");
+    }
+
+    // 3) Lưu key và hiển thị preview
+    document.getElementById('image-url').value = key;
+    const preview = document.getElementById('upload-preview');
+    // For immediate preview without waiting for presign GET, use object URL
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+
   } catch (e) {
     console.error('Upload error', e);
+    alert('Image upload failed: ' + e.message);
   }
 }
 
@@ -99,15 +148,17 @@ async function previewImage(input) {
 async function loadPosts() {
   try {
     let endpoint = `${API}/api/posts`;
-    if (currentTab === 'draft') endpoint = `${API}/api/posts/drafts`;
+    if (currentTab === "draft") endpoint = `${API}/api/posts/drafts`;
 
     const res = await fetch(endpoint, { credentials: "include" });
     let posts = await res.json();
     if (!posts) posts = [];
     allPosts = posts;
 
-    if (currentTab === 'my_posts') {
-      posts = posts.filter(p => currentUser && String(p.author_id) === String(currentUser.id));
+    if (currentTab === "my_posts") {
+      posts = posts.filter(
+        (p) => currentUser && String(p.author_id) === String(currentUser.id),
+      );
     }
 
     const container = document.getElementById("posts");
@@ -117,18 +168,40 @@ async function loadPosts() {
       return;
     }
 
-    const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e5e7eb'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%239ca3af'/%3E%3C/svg%3E";
+    const defaultAvatar =
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e5e7eb'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%239ca3af'/%3E%3C/svg%3E";
 
     // Check if user has permission to modify this post
     const canModify = (p) => {
       if (!currentUser) return false;
-      return currentUser.role === 'admin' || currentUser.role === 'dev' || currentUser.id === p.author_id;
+      return (
+        currentUser.role === "admin" ||
+        currentUser.role === "dev" ||
+        currentUser.id === p.author_id
+      );
     };
 
-    container.innerHTML = posts.map(p => {
-      const safeTitle = escapeHTML(p.title);
+    // Pre-fetch presigned URLs for all images
+    const postsWithImages = await Promise.all(posts.map(async p => {
+      if (p.cover_image_url && !p.cover_image_url.startsWith('http')) {
+        p.presigned_url = await getPresignedGetUrl(p.cover_image_url);
+      } else {
+        p.presigned_url = p.cover_image_url;
+      }
+      if (p.avatar && !p.avatar.startsWith('http') && !p.avatar.startsWith('data:')) {
+        p.presigned_avatar = await getPresignedGetUrl(p.avatar);
+      } else {
+        p.presigned_avatar = p.avatar;
+      }
+      return p;
+    }));
 
-      const actionBtns = canModify(p) ? `
+    container.innerHTML = postsWithImages
+      .map((p) => {
+        const safeTitle = escapeHTML(p.title);
+
+        const actionBtns = canModify(p)
+          ? `
         <div class="post-actions" style="margin-left: auto;">
           <button class="btn-icon" onclick="editPost('${p.id || p.ID}')" title="Edit Post">
             <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -137,17 +210,23 @@ async function loadPosts() {
             <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
-      ` : '';
+      `
+          : "";
 
-      const draftBadge = p.status === 'draft' ? `<span class="draft-badge">Draft</span>` : '';
-      const imageHTML = p.cover_image_url ? `<img src="${p.cover_image_url}" class="post-image" alt="Cover Image">` : '';
-      const timeStr = p.created_at ? new Date(p.created_at).toLocaleString() : 'Just now';
+        const draftBadge =
+          p.status === "draft" ? `<span class="draft-badge">Draft</span>` : "";
+        const imageHTML = p.presigned_url
+          ? `<img src="${p.presigned_url}" class="post-image" alt="Cover Image">`
+          : "";
+        const timeStr = p.created_at
+          ? new Date(p.created_at).toLocaleString()
+          : "Just now";
 
-      return `
+        return `
         <article class="post-card">
           <div class="post-header" style="align-items: center;">
             <div class="post-meta" style="margin-bottom: 0;">
-              <img src="${p.avatar || defaultAvatar}" alt="${p.author}">
+              <img src="${p.presigned_avatar || defaultAvatar}" alt="${p.author}">
               <span class="post-author">${escapeHTML(p.author)}</span>
               <span>·</span>
               <span>${timeStr}</span>
@@ -160,10 +239,12 @@ async function loadPosts() {
           <div class="post-content ql-editor" style="padding: 0;">${p.content}</div>
         </article>
       `;
-    }).join("");
+      })
+      .join("");
   } catch (err) {
     console.error("Error loading posts:", err);
-    document.getElementById("posts").innerHTML = `<div class="empty-state">Failed to load posts. Please try again later.</div>`;
+    document.getElementById("posts").innerHTML =
+      `<div class="empty-state">Failed to load posts. Please try again later.</div>`;
   }
 }
 
@@ -183,7 +264,9 @@ async function submitPost(status) {
   if (imageUrl) payload.cover_image_url = imageUrl;
 
   const isEditing = !!editingPostId;
-  const url = isEditing ? `${API}/api/posts/${editingPostId}` : `${API}/api/posts`;
+  const url = isEditing
+    ? `${API}/api/posts/${editingPostId}`
+    : `${API}/api/posts`;
   const method = isEditing ? "PUT" : "POST";
 
   try {
@@ -191,7 +274,7 @@ async function submitPost(status) {
       method: method,
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     if (res.ok) {
@@ -206,7 +289,7 @@ async function submitPost(status) {
   }
 }
 
-function editPost(id) {
+async function editPost(id) {
   const post = allPosts.find(p => String(p.id || p.ID) === String(id));
   if (!post) return;
 
@@ -217,7 +300,8 @@ function editPost(id) {
 
   if (post.cover_image_url) {
     document.getElementById('image-url').value = post.cover_image_url;
-    document.getElementById('upload-preview').src = post.cover_image_url;
+    const presigned = await getPresignedGetUrl(post.cover_image_url);
+    document.getElementById('upload-preview').src = presigned;
     document.getElementById('upload-preview').style.display = 'block';
   } else {
     document.getElementById('image-url').value = '';
@@ -230,33 +314,40 @@ function editPost(id) {
 
 function cancelEdit() {
   editingPostId = null;
-  document.getElementById('form-title').textContent = "Create a new post";
-  document.getElementById('title').value = "";
+  document.getElementById("form-title").textContent = "Create a new post";
+  document.getElementById("title").value = "";
   quill.setContents([]);
-  document.getElementById('image-url').value = "";
-  document.getElementById('upload-preview').style.display = 'none';
-  document.getElementById('image-file').value = "";
-  document.getElementById('cancel-edit').style.display = 'none';
+  document.getElementById("image-url").value = "";
+  document.getElementById("upload-preview").style.display = "none";
+  document.getElementById("image-file").value = "";
+  document.getElementById("cancel-edit").style.display = "none";
 }
 
 async function deletePost(postId) {
-  if (!postId || postId === 'undefined') {
+  if (!postId || postId === "undefined") {
     alert("Cannot delete post: ID is missing.");
     return;
   }
 
-  if (!confirm("Are you sure you want to delete this post? This action cannot be undone.")) return;
+  if (
+    !confirm(
+      "Are you sure you want to delete this post? This action cannot be undone.",
+    )
+  )
+    return;
 
   try {
     const res = await fetch(`${API}/api/posts/${postId}`, {
       method: "DELETE",
-      credentials: "include"
+      credentials: "include",
     });
 
     if (res.ok) {
       loadPosts();
     } else {
-      alert("Failed to delete post. You might not have the correct permissions.");
+      alert(
+        "Failed to delete post. You might not have the correct permissions.",
+      );
     }
   } catch (err) {
     console.error("Error deleting post:", err);
@@ -275,14 +366,16 @@ async function logout() {
 
 function escapeHTML(str) {
   if (!str) return "";
-  return String(str).replace(/[&<>'"]/g,
-    tag => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      "'": '&#39;',
-      '"': '&quot;'
-    }[tag])
+  return String(str).replace(
+    /[&<>'"]/g,
+    (tag) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[tag],
   );
 }
 
@@ -291,48 +384,70 @@ async function uploadProfileImage(input) {
   const file = input.files[0];
   if (!file) return;
 
-  const formData = new FormData();
-  formData.append('file', file);
-
   try {
-    const res = await fetch(`${API}/api/upload`, {
-      method: 'POST',
-      credentials: 'include',
-      body: formData
+    // 1) Xin presigned URL từ backend
+    const res = await fetch(`${API}/api/upload/presign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type
+      })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      document.getElementById('profile-avatar-url').value = data.url;
-      document.getElementById('profile-avatar-preview').src = data.url;
-    } else {
-      alert('Avatar upload failed');
+    if (!res.ok) {
+      throw new Error("Cannot get presigned URL");
     }
+
+    const { uploadUrl, key } = await res.json();
+
+    // 2) Upload trực tiếp lên S3
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type
+      },
+      body: file
+    });
+
+    if (!putRes.ok) {
+      throw new Error("Upload to S3 failed");
+    }
+
+    // 3) Lưu key và hiển thị preview
+    document.getElementById('profile-avatar-url').value = key;
+    // For immediate preview without waiting for presign GET, use object URL
+    document.getElementById('profile-avatar-preview').src = URL.createObjectURL(file);
+
   } catch (e) {
     console.error('Upload error', e);
+    alert('Avatar upload failed: ' + e.message);
   }
 }
 
 function openProfileModal() {
   if (!currentUser) return;
-  document.getElementById('profile-name').value = currentUser.name || '';
+  document.getElementById("profile-name").value = currentUser.name || "";
 
-  const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e5e7eb'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%239ca3af'/%3E%3C/svg%3E";
+  const defaultAvatar =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e5e7eb'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%239ca3af'/%3E%3C/svg%3E";
   let avatarSrc = currentUser.avatar || defaultAvatar;
 
-  document.getElementById('profile-avatar-preview').src = avatarSrc;
-  document.getElementById('profile-avatar-url').value = currentUser.avatar || '';
-  document.getElementById('profile-avatar-file').value = '';
-  document.getElementById('profile-password').value = '';
+  document.getElementById("profile-avatar-preview").src = avatarSrc;
+  document.getElementById("profile-avatar-url").value =
+    currentUser.avatar || "";
+  document.getElementById("profile-avatar-file").value = "";
+  document.getElementById("profile-password").value = "";
 
-  document.getElementById('profile-modal').classList.add('active');
+  document.getElementById("profile-modal").classList.add("active");
 }
 
 function closeProfileModal() {
-  document.getElementById('profile-modal').classList.remove('active');
+  document.getElementById("profile-modal").classList.remove("active");
 }
 
-const profModal = document.getElementById('profile-modal');
+const profModal = document.getElementById("profile-modal");
 if (profModal) {
   profModal.addEventListener("click", (e) => {
     if (e.target === profModal) closeProfileModal();
@@ -340,9 +455,9 @@ if (profModal) {
 }
 
 async function saveProfile() {
-  const name = document.getElementById('profile-name').value.trim();
-  const avatar = document.getElementById('profile-avatar-url').value.trim();
-  const password = document.getElementById('profile-password').value;
+  const name = document.getElementById("profile-name").value.trim();
+  const avatar = document.getElementById("profile-avatar-url").value.trim();
+  const password = document.getElementById("profile-password").value;
 
   if (!name) {
     alert("Name is required.");
@@ -352,16 +467,16 @@ async function saveProfile() {
   const payload = { name, avatar };
   if (password) payload.password = password;
 
-  const btn = document.getElementById('save-profile-btn');
+  const btn = document.getElementById("save-profile-btn");
   btn.disabled = true;
-  btn.textContent = 'Saving...';
+  btn.textContent = "Saving...";
 
   try {
     const res = await fetch(`${API}/api/me`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     if (res.ok) {
@@ -377,6 +492,6 @@ async function saveProfile() {
     alert("An error occurred while saving profile.");
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Save Profile';
+    btn.textContent = "Save Profile";
   }
 }

@@ -7,10 +7,16 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
+	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func healthCheck(c *gin.Context) {
@@ -211,21 +217,147 @@ func deletePost(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "post deleted"})
 }
 
-func uploadImage(c *gin.Context) {
-	file, err := c.FormFile("file")
+func getenvStr(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
+func getenvInt(key string, defaultVal int) int {
+	if val := os.Getenv(key); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			return intVal
+		}
+	}
+	return defaultVal
+}
+
+func sanitizeFilename(name string) string {
+	name = filepath.Base(name)
+	name = strings.ReplaceAll(name, " ", "_")
+	name = strings.ReplaceAll(name, "..", "")
+	return name
+}
+
+func buildObjectKey(prefix string, userID int, filename string) string {
+	id := uuid.NewString()
+	filename = sanitizeFilename(filename)
+	prefix = strings.TrimSpace(prefix)
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	return fmt.Sprintf("%s%s-%s", prefix, id, filename)
+}
+
+func createS3PresignClient(ctx context.Context, region string) (*s3.PresignClient, error) {
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
 	if err != nil {
-		c.JSON(400, gin.H{"error": "no image provided"})
+		return nil, err
+	}
+	s3c := s3.NewFromConfig(cfg)
+	return s3.NewPresignClient(s3c), nil
+}
+
+func handlePresignUpload(c *gin.Context) {
+	sess, _ := store.Get(c.Request, "session")
+	userID, ok := sess.Values["user_id"].(int)
+	if !ok {
+		c.JSON(401, gin.H{"error": "unauthorized"})
 		return
 	}
-	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
-	dst := "./uploads/" + filename
-	if err := c.SaveUploadedFile(file, dst); err != nil {
-		c.JSON(500, gin.H{"error": "failed to save file"})
+
+	var req struct {
+		Filename    string `json:"filename"`
+		ContentType string `json:"contentType"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid request body"})
 		return
 	}
-	url := fmt.Sprintf("http://localhost:8080/uploads/%s", filename)
-	c.JSON(200, gin.H{"url": url})
+
+	if req.Filename == "" || req.ContentType == "" {
+		c.JSON(400, gin.H{"error": "filename and contentType are required"})
+		return
+	}
+
+	allowedMimes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/gif":  true,
+		"image/webp": true,
+	}
+	if !allowedMimes[req.ContentType] {
+		c.JSON(400, gin.H{"error": "unsupported content type"})
+		return
+	}
+
+	region := getenvStr("AWS_REGION", "")
+	bucket := getenvStr("AWS_BUCKET_NAME", "")
+	prefix := getenvStr("AWS_S3_PREFIX", "uploads/")
+	expireSec := getenvInt("PRESIGN_EXPIRE_SECONDS", 120)
+
+	if bucket == "" || region == "" {
+		c.JSON(500, gin.H{"error": "AWS configuration missing"})
+		return
+	}
+
+	key := buildObjectKey(prefix, userID, req.Filename)
+
+	presignClient, err := createS3PresignClient(c.Request.Context(), region)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to init aws config: " + err.Error()})
+		return
+	}
+
+	out, err := presignClient.PresignPutObject(c.Request.Context(), &s3.PutObjectInput{
+		Bucket:      aws.String(bucket),
+		Key:         aws.String(key),
+		ContentType: aws.String(req.ContentType),
+	}, s3.WithPresignExpires(time.Duration(expireSec)*time.Second))
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to presign put object: " + err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"uploadUrl": out.URL,
+		"key":       key,
+	})
+}
+
+func handlePresignGet(c *gin.Context) {
+	key := c.Query("key")
+	if strings.TrimSpace(key) == "" {
+		c.JSON(400, gin.H{"error": "key is required"})
+		return
+	}
+
+	region := getenvStr("AWS_REGION", "")
+	bucket := getenvStr("AWS_BUCKET_NAME", "")
+	expireSec := getenvInt("PRESIGN_EXPIRE_SECONDS", 3600) // 1 hour
+
+	if bucket == "" || region == "" {
+		c.JSON(500, gin.H{"error": "AWS configuration missing"})
+		return
+	}
+
+	presignClient, err := createS3PresignClient(c.Request.Context(), region)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to init aws config: " + err.Error()})
+		return
+	}
+
+	out, err := presignClient.PresignGetObject(c.Request.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}, s3.WithPresignExpires(time.Duration(expireSec)*time.Second))
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to presign get object: " + err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"url": out.URL})
 }
 
 // suppress unused import warning

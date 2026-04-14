@@ -1,4 +1,5 @@
-const API = "http://localhost:8080";
+const API = "http://blog-alg-1066533360.us-west-2.elb.amazonaws.com";
+
 let currentUser = null;
 
 // Auth check and role verify

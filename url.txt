@@ -1,0 +1,1 @@
+https://test-fedora-bucket-1775719490.s3.us-west-2.amazonaws.com/uploads/test.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA...%2F20260414%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20260414T020108Z&X-Amz-Expires=120&X-Amz-SignedHeaders=host&x-id=PutObject&X-Amz-Signature=24f52e6f29890ea79eab31fa94217ed0a806976ca44f7e8a5b6e044998b6ab41
