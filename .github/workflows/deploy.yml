@@ -32,8 +32,11 @@ jobs:
 
     - name: Upload Binary to S3
       run: |
+        set -e
         echo "Uploading backend binary to S3..."
+        ls -lh blog-app
         aws s3 cp blog-app s3://${{ secrets.AWS_BUCKET_NAME }}/blog-app
+        echo "Upload completed successfully"
 
     - name: Deploy to EC2 via AWS Systems Manager (SSM)
       run: |
