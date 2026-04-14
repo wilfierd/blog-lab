@@ -44,10 +44,7 @@ jobs:
         BACKUP_COMMAND_ID=$(aws ssm send-command \
           --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
-          --parameters 'commands=[
-            "cd /home/ec2-user",
-            "if [ -f blog-app ]; then cp blog-app blog-app.backup; fi"
-          ]' \
+          --parameters "commands=[\"cd /home/ec2-user\", \"if [ -f blog-app ]; then cp blog-app blog-app.backup; fi\"]" \
           --query "Command.CommandId" \
           --output text)
         
@@ -59,13 +56,7 @@ jobs:
         COMMAND_ID=$(aws ssm send-command \
           --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
-          --parameters 'commands=[
-            "cd /home/ec2-user",
-            "aws s3 cp s3://${{ secrets.AWS_BUCKET_NAME }}/blog-app . --region ${{ secrets.AWS_REGION }}",
-            "chmod +x blog-app",
-            "sudo systemctl restart blog.service",
-            "sleep 5"
-          ]' \
+          --parameters "commands=[\"cd /home/ec2-user\", \"aws s3 cp s3://${{ secrets.AWS_BUCKET_NAME }}/blog-app . --region ${{ secrets.AWS_REGION }}\", \"chmod +x blog-app\", \"sudo systemctl restart blog.service\", \"sleep 5\"]" \
           --query "Command.CommandId" \
           --output text)
 
@@ -119,16 +110,7 @@ jobs:
           ROLLBACK_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=[
-              "cd /home/ec2-user",
-              "if [ -f blog-app.backup ]; then",
-              "  mv blog-app.backup blog-app",
-              "  sudo systemctl restart blog.service",
-              "  echo \"Rolled back to previous version\"",
-              "else",
-              "  echo \"No backup found\"",
-              "fi"
-            ]' \
+            --parameters "commands=[\"cd /home/ec2-user && if [ -f blog-app.backup ]; then mv blog-app.backup blog-app && sudo systemctl restart blog.service && echo 'Rolled back to previous version'; else echo 'No backup found'; fi\"]" \
             --query "Command.CommandId" \
             --output text)
           
