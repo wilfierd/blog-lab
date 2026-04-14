@@ -3,10 +3,20 @@ name: Deploy Blog App to EC2 (Private Subnet)
 on:
   push:
     branches:
-      - main # Chạy pipeline khi có code mới đẩy lên nhánh main
+      - main
+
+# ============================================================
+# Job 1: Build   → Build binary Go (ARM64)
+# Job 2: Deploy  → Upload S3, SSM deploy lên EC2
+# Job 3: Verify  → Health check + rollback nếu fail
+# ============================================================
 
 jobs:
-  build-and-deploy:
+  # ──────────────────────────────────────────────
+  # JOB 1: BUILD
+  # ──────────────────────────────────────────────
+  build:
+    name: Build Go Binary
     runs-on: ubuntu-latest
 
     steps:
@@ -16,12 +26,13 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.22' # Thay đổi phiên bản Go nếu cần
+        go-version: '1.22'
 
-    - name: Build Go Backend for ARM64 (Graviton)
+    - name: Build for ARM64 (Graviton)
       run: |
-        echo "Building Go backend..."
+        echo "Building Go backend for ARM64..."
         GOOS=linux GOARCH=arm64 go build -o blog-app .
+        ls -lh blog-app
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -30,99 +41,185 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Upload Binary to S3
+    - name: Upload Artifacts to S3
       env:
         BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
         REGION: ${{ secrets.AWS_REGION }}
       run: |
-        echo "Uploading backend binary to S3..."
         BUCKET=$(echo "$BUCKET" | tr -d '[:space:]')
         REGION=$(echo "$REGION" | tr -d '[:space:]')
+        echo "Uploading to s3://${BUCKET}/..."
         aws s3 cp blog-app "s3://${BUCKET}/blog-app" --region "${REGION}"
+        aws s3 cp blog.service "s3://${BUCKET}/blog.service" --region "${REGION}"
         echo "Upload completed"
 
-    - name: Deploy to EC2 via AWS Systems Manager (SSM)
+  # ──────────────────────────────────────────────
+  # JOB 2: DEPLOY
+  # ──────────────────────────────────────────────
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Backup Old Binary
+      env:
+        INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+      run: |
+        INSTANCE_ID=$(echo "$INSTANCE_ID" | tr -d '[:space:]')
+
+        echo "Backing up old binary..."
+        CMD_ID=$(aws ssm send-command \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["cd /home/ec2-user && if [ -f blog-app ]; then cp blog-app blog-app.backup && echo Backup created; else echo No existing binary; fi"]' \
+          --query 'Command.CommandId' \
+          --output text)
+
+        aws ssm wait command-executed \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID"
+        echo "Backup done"
+
+    - name: Stop Old Process
+      env:
+        INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+      run: |
+        INSTANCE_ID=$(echo "$INSTANCE_ID" | tr -d '[:space:]')
+
+        echo "Stopping old process..."
+        CMD_ID=$(aws ssm send-command \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["sudo systemctl stop blog.service 2>/dev/null; sudo pkill -f blog-app 2>/dev/null; echo Process stopped"]' \
+          --query 'Command.CommandId' \
+          --output text)
+
+        aws ssm wait command-executed \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" || true
+        echo "Stop done"
+
+    - name: Download Binary & Install Service
       env:
         BUCKET: ${{ secrets.AWS_BUCKET_NAME }}
         REGION: ${{ secrets.AWS_REGION }}
         INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
       run: |
-        # Strip trailing whitespace/newlines from secrets
         BUCKET=$(echo "$BUCKET" | tr -d '[:space:]')
         REGION=$(echo "$REGION" | tr -d '[:space:]')
         INSTANCE_ID=$(echo "$INSTANCE_ID" | tr -d '[:space:]')
 
-        echo "Sending deployment command to EC2 instance..."
-        echo "BUCKET=$BUCKET | REGION=$REGION | INSTANCE=$INSTANCE_ID"
+        DEPLOY_CMD="cd /home/ec2-user && aws s3 cp s3://${BUCKET}/blog-app . --region ${REGION} && aws s3 cp s3://${BUCKET}/blog.service . --region ${REGION} && chmod +x blog-app && sudo cp blog.service /etc/systemd/system/blog.service && sudo systemctl daemon-reload && sudo systemctl enable blog.service && echo Download and install done"
 
-        # Backup binary cũ trước khi deploy
-        BACKUP_COMMAND_ID=$(aws ssm send-command \
-          --instance-ids "$INSTANCE_ID" \
-          --document-name "AWS-RunShellScript" \
-          --parameters 'commands=["cd /home/ec2-user && if [ -f blog-app ]; then cp blog-app blog-app.backup; fi"]' \
-          --query 'Command.CommandId' \
-          --output text)
-
-        echo "Waiting for backup command..."
-        aws ssm wait command-executed \
-          --command-id "$BACKUP_COMMAND_ID" \
-          --instance-id "$INSTANCE_ID"
-
-        # Deploy binary mới
-        DEPLOY_CMD="cd /home/ec2-user && aws s3 cp s3://${BUCKET}/blog-app . --region ${REGION} && chmod +x blog-app && sudo systemctl restart blog.service"
-        echo "Deploy command: $DEPLOY_CMD"
-
-        COMMAND_ID=$(aws ssm send-command \
+        CMD_ID=$(aws ssm send-command \
           --instance-ids "$INSTANCE_ID" \
           --document-name "AWS-RunShellScript" \
           --parameters "commands=[\"$DEPLOY_CMD\"]" \
           --query 'Command.CommandId' \
           --output text)
 
-        echo "Command ID: $COMMAND_ID"
-
-        # Wait for command, but capture output even if it fails
         aws ssm wait command-executed \
-          --command-id "$COMMAND_ID" \
+          --command-id "$CMD_ID" \
           --instance-id "$INSTANCE_ID" || true
 
-        # Always show both stdout and stderr from EC2
-        echo "=== EC2 STDOUT ==="
+        echo "=== STDOUT ==="
         aws ssm get-command-invocation \
-          --command-id "$COMMAND_ID" \
+          --command-id "$CMD_ID" \
           --instance-id "$INSTANCE_ID" \
-          --query 'StandardOutputContent' \
-          --output text || true
+          --query 'StandardOutputContent' --output text || true
 
-        echo "=== EC2 STDERR ==="
+        echo "=== STDERR ==="
         aws ssm get-command-invocation \
-          --command-id "$COMMAND_ID" \
+          --command-id "$CMD_ID" \
           --instance-id "$INSTANCE_ID" \
-          --query 'StandardErrorContent' \
-          --output text || true
+          --query 'StandardErrorContent' --output text || true
 
-        # Now check actual status and fail if needed
         STATUS=$(aws ssm get-command-invocation \
-          --command-id "$COMMAND_ID" \
+          --command-id "$CMD_ID" \
           --instance-id "$INSTANCE_ID" \
-          --query 'Status' \
-          --output text)
+          --query 'Status' --output text)
 
-        echo "Deploy status: $STATUS"
         if [ "$STATUS" != "Success" ]; then
-          echo "::error::Deploy command failed on EC2 with status: $STATUS"
+          echo "::error::Download/install failed: $STATUS"
           exit 1
         fi
 
-    - name: Health Check
+    - name: Start New Process
       env:
         INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
       run: |
+        INSTANCE_ID=$(echo "$INSTANCE_ID" | tr -d '[:space:]')
+
+        echo "Starting blog.service..."
+        CMD_ID=$(aws ssm send-command \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["sudo systemctl restart blog.service && sleep 2 && sudo systemctl status blog.service --no-pager"]' \
+          --query 'Command.CommandId' \
+          --output text)
+
+        aws ssm wait command-executed \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" || true
+
+        echo "=== Service Status ==="
+        aws ssm get-command-invocation \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'StandardOutputContent' --output text || true
+
+        echo "=== STDERR ==="
+        aws ssm get-command-invocation \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'StandardErrorContent' --output text || true
+
+        STATUS=$(aws ssm get-command-invocation \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'Status' --output text)
+
+        if [ "$STATUS" != "Success" ]; then
+          echo "::error::Failed to start blog.service: $STATUS"
+          exit 1
+        fi
+        echo "Service started successfully"
+
+  # ──────────────────────────────────────────────
+  # JOB 3: VERIFY
+  # ──────────────────────────────────────────────
+  verify:
+    name: Health Check & Rollback
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Health Check
+      id: health
+      env:
+        INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+      run: |
+        INSTANCE_ID=$(echo "$INSTANCE_ID" | tr -d '[:space:]')
+
         echo "Running health check..."
+        HEALTH_CMD="for i in 1 2 3 4 5 6 7 8 9 10; do if curl -sf http://localhost:8080/api/health > /dev/null; then echo Health check passed; exit 0; fi; echo Attempt \$i failed, retrying...; sleep 3; done; echo Health check failed after 10 attempts; exit 1"
 
-        HEALTH_CMD="for i in {1..10}; do if curl -sf http://localhost:8080/api/health > /dev/null; then echo 'Health check passed'; exit 0; fi; echo \"Attempt $i failed, retrying...\"; sleep 3; done; echo 'Health check failed after 10 attempts'; exit 1"
-
-        HEALTH_CHECK_ID=$(aws ssm send-command \
+        CMD_ID=$(aws ssm send-command \
           --instance-ids "$INSTANCE_ID" \
           --document-name "AWS-RunShellScript" \
           --parameters "commands=[\"$HEALTH_CMD\"]" \
@@ -130,32 +227,58 @@ jobs:
           --output text)
 
         aws ssm wait command-executed \
-          --command-id "$HEALTH_CHECK_ID" \
-          --instance-id "$INSTANCE_ID"
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" || true
+
+        echo "=== Health Check Output ==="
+        aws ssm get-command-invocation \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'StandardOutputContent' --output text || true
 
         STATUS=$(aws ssm get-command-invocation \
-          --command-id "$HEALTH_CHECK_ID" \
+          --command-id "$CMD_ID" \
           --instance-id "$INSTANCE_ID" \
-          --query 'Status' \
-          --output text)
+          --query 'Status' --output text)
+
+        echo "health_status=$STATUS" >> "$GITHUB_OUTPUT"
 
         if [ "$STATUS" != "Success" ]; then
-          echo "Health check failed! Rolling back..."
-
-          ROLLBACK_CMD="cd /home/ec2-user && if [ -f blog-app.backup ]; then mv blog-app.backup blog-app && sudo systemctl restart blog.service && echo 'Rolled back to previous version'; else echo 'No backup found'; fi"
-
-          ROLLBACK_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --parameters "commands=[\"$ROLLBACK_CMD\"]" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          aws ssm wait command-executed \
-            --command-id "$ROLLBACK_ID" \
-            --instance-id "$INSTANCE_ID"
-
-          exit 1
+          echo "::warning::Health check failed!"
+        else
+          echo "Health check passed!"
         fi
 
-        echo "Deployment successful!"
+    - name: Rollback (if health check failed)
+      if: steps.health.outputs.health_status != 'Success'
+      env:
+        INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+      run: |
+        INSTANCE_ID=$(echo "$INSTANCE_ID" | tr -d '[:space:]')
+
+        echo "Rolling back to previous version..."
+        ROLLBACK_CMD="cd /home/ec2-user && sudo systemctl stop blog.service; sudo pkill -f blog-app 2>/dev/null; if [ -f blog-app.backup ]; then mv blog-app.backup blog-app && sudo systemctl restart blog.service && echo Rolled back successfully; else echo No backup found - cannot rollback; fi"
+
+        CMD_ID=$(aws ssm send-command \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --parameters "commands=[\"$ROLLBACK_CMD\"]" \
+          --query 'Command.CommandId' \
+          --output text)
+
+        aws ssm wait command-executed \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" || true
+
+        echo "=== Rollback Output ==="
+        aws ssm get-command-invocation \
+          --command-id "$CMD_ID" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'StandardOutputContent' --output text || true
+
+        echo "::error::Deployment rolled back due to failed health check"
+        exit 1
+
+    - name: Deployment Success
+      if: steps.health.outputs.health_status == 'Success'
+      run: echo "✅ Deployment completed successfully!"
