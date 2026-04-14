@@ -44,7 +44,23 @@ jobs:
     - name: Deploy to EC2 via AWS Systems Manager (SSM)
       run: |
         echo "Sending deployment command to EC2 instance..."
-        # Lệnh này yêu cầu EC2 tải code mới từ S3 về và khởi động lại dịch vụ
+        
+        # Backup binary cũ trước khi deploy
+        BACKUP_COMMAND_ID=$(aws ssm send-command \
+          --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=[
+            "cd /home/ec2-user",
+            "if [ -f blog-app ]; then cp blog-app blog-app.backup; fi"
+          ]' \
+          --query "Command.CommandId" \
+          --output text)
+        
+        aws ssm wait command-executed \
+          --command-id "$BACKUP_COMMAND_ID" \
+          --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+        
+        # Deploy binary mới
         COMMAND_ID=$(aws ssm send-command \
           --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
@@ -56,22 +72,79 @@ jobs:
             "chmod +x blog-app",
             "sudo systemctl daemon-reload",
             "sudo systemctl restart blog.service",
-            "sudo systemctl status blog.service --no-pager"
+            "sleep 5"
           ]' \
           --query "Command.CommandId" \
           --output text)
 
         echo "Command ID: $COMMAND_ID"
         
-        # Chờ lệnh chạy xong và kiểm tra kết quả (Tối đa 60 giây)
-        echo "Waiting for command to complete..."
         aws ssm wait command-executed \
           --command-id "$COMMAND_ID" \
           --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
 
-        # Lấy output log của lệnh vừa chạy trên EC2
         aws ssm get-command-invocation \
           --command-id "$COMMAND_ID" \
           --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
           --query "StandardOutputContent" \
           --output text
+
+    - name: Health Check
+      run: |
+        echo "Running health check..."
+        HEALTH_CHECK_ID=$(aws ssm send-command \
+          --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=[
+            "for i in {1..10}; do",
+            "  if curl -f http://localhost:8080/api/health > /dev/null 2>&1; then",
+            "    echo \"Health check passed\"",
+            "    exit 0",
+            "  fi",
+            "  echo \"Attempt $i failed, retrying...\"",
+            "  sleep 3",
+            "done",
+            "echo \"Health check failed after 10 attempts\"",
+            "exit 1"
+          ]' \
+          --query "Command.CommandId" \
+          --output text)
+        
+        aws ssm wait command-executed \
+          --command-id "$HEALTH_CHECK_ID" \
+          --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+        
+        STATUS=$(aws ssm get-command-invocation \
+          --command-id "$HEALTH_CHECK_ID" \
+          --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+          --query "Status" \
+          --output text)
+        
+        if [ "$STATUS" != "Success" ]; then
+          echo "Health check failed! Rolling back..."
+          
+          # Rollback to previous version
+          ROLLBACK_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "cd /home/ec2-user",
+              "if [ -f blog-app.backup ]; then",
+              "  mv blog-app.backup blog-app",
+              "  sudo systemctl restart blog.service",
+              "  echo \"Rolled back to previous version\"",
+              "else",
+              "  echo \"No backup found\"",
+              "fi"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          
+          aws ssm wait command-executed \
+            --command-id "$ROLLBACK_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+          
+          exit 1
+        fi
+        
+        echo "Deployment successful!"

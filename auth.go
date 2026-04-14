@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -30,14 +32,20 @@ func handleLogin(c *gin.Context) {
 		return
 	}
 	var userID int
-	var name, avatar, hash, role string
+	var name, avatar, password, role sql.NullString
 	err := db.QueryRow(`SELECT id, name, avatar, password_hash, role FROM users WHERE username = $1`, body.Username).
-		Scan(&userID, &name, &avatar, &hash, &role)
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(body.Password)) != nil {
+		Scan(&userID, &name, &avatar, &password, &role)
+	if err != nil {
+		log.Printf("Login error for %s: %v", body.Username, err)
 		c.JSON(401, gin.H{"error": "invalid username or password"})
 		return
 	}
-	setSession(c, userID, name, avatar, role)
+	if password.String != body.Password {
+		log.Printf("Password mismatch for %s", body.Username)
+		c.JSON(401, gin.H{"error": "invalid username or password"})
+		return
+	}
+	setSession(c, userID, name.String, avatar.String, role.String)
 	updateLastAccess(userID)
 	c.JSON(200, gin.H{"role": role, "name": name})
 }
