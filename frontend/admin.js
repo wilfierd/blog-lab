@@ -1,4 +1,4 @@
-const API = "http://blog-alg-1066533360.us-west-2.elb.amazonaws.com";
+const API = "";
 
 let currentUser = null;
 

@@ -54,8 +54,8 @@ func main() {
 		Path:     "/",
 		MaxAge:   86400,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode, // Lax = hoạt động same-origin trên Chrome
-		Secure:   false,                // false vì đang dùng HTTP
+		SameSite: http.SameSiteLaxMode, // Same-origin nên Lax là đủ
+		Secure:   false,                // ALB→EC2 vẫn là HTTP
 	}
 
 	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")

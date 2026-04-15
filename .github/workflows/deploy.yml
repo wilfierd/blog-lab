@@ -51,6 +51,7 @@ jobs:
         echo "Uploading to s3://${BUCKET}/..."
         aws s3 cp blog-app "s3://${BUCKET}/blog-app" --region "${REGION}"
         aws s3 cp blog.service "s3://${BUCKET}/blog.service" --region "${REGION}"
+        aws s3 sync frontend/ "s3://${BUCKET}/frontend/" --region "${REGION}" --delete
         echo "Upload completed"
 
   # ──────────────────────────────────────────────
@@ -117,7 +118,7 @@ jobs:
         REGION=$(echo "$REGION" | tr -d '[:space:]')
         INSTANCE_ID=$(echo "$INSTANCE_ID" | tr -d '[:space:]')
 
-        DEPLOY_CMD="cd /home/ec2-user && aws s3 cp s3://${BUCKET}/blog-app . --region ${REGION} && aws s3 cp s3://${BUCKET}/blog.service . --region ${REGION} && chmod +x blog-app && sudo cp blog.service /etc/systemd/system/blog.service && sudo systemctl daemon-reload && sudo systemctl enable blog.service && echo Download and install done"
+        DEPLOY_CMD="cd /home/ec2-user && aws s3 cp s3://${BUCKET}/blog-app . --region ${REGION} && aws s3 cp s3://${BUCKET}/blog.service . --region ${REGION} && aws s3 sync s3://${BUCKET}/frontend/ ./frontend/ --region ${REGION} && chmod +x blog-app && sudo cp blog.service /etc/systemd/system/blog.service && sudo systemctl daemon-reload && sudo systemctl enable blog.service && echo Download and install done"
 
         CMD_ID=$(aws ssm send-command \
           --instance-ids "$INSTANCE_ID" \
