@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -49,7 +50,13 @@ func main() {
 	defer rdb.Close()
 
 	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
-	store.Options = &sessions.Options{Path: "/", MaxAge: 86400, HttpOnly: true}
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   86400,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode, // Lax = hoạt động same-origin trên Chrome
+		Secure:   false,                // false vì đang dùng HTTP
+	}
 
 	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
 	if redirectURL == "" {
