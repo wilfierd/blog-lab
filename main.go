@@ -60,7 +60,7 @@ func main() {
 
 	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
 	if redirectURL == "" {
-		redirectURL = "http://localhost:8080/auth/google/callback"
+		redirectURL = "https://blog.wilfierd.engineer/auth/google/callback" // Default cho production
 	}
 
 	oauthConfig = &oauth2.Config{
