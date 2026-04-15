@@ -2,7 +2,7 @@
 Description=Blog App
 After=network.target
 
-[Service]
+[Service]   
 Type=simple
 User=ec2-user
 WorkingDirectory=/home/ec2-user
@@ -11,6 +11,8 @@ Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+Environment=AWS_SECRET_NAME=blog/prod/secrets
+Environment=AWS_REGION=us-west-2
 
 [Install]
 WantedBy=multi-user.target
