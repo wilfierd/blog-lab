@@ -61,7 +61,7 @@ func handleDevLogin(c *gin.Context) {
 	}
 	setSession(c, userID, name, avatar, role)
 	updateLastAccess(userID)
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/blog.html")
+	c.Redirect(http.StatusTemporaryRedirect, "/frontend/blog.html")
 }
 
 func handleGoogleLogin(c *gin.Context) {
@@ -107,14 +107,14 @@ func handleGoogleCallback(c *gin.Context) {
 	}
 	setSession(c, userID, info.Name, info.Picture, role)
 	updateLastAccess(userID)
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/blog.html")
+	c.Redirect(http.StatusTemporaryRedirect, "/frontend/blog.html")
 }
 
 func handleLogout(c *gin.Context) {
 	sess, _ := store.Get(c.Request, "session")
 	sess.Options.MaxAge = -1
 	sess.Save(c.Request, c.Writer)
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/index.html")
+	c.Redirect(http.StatusTemporaryRedirect, "/frontend/index.html")
 }
 
 func handleMe(c *gin.Context) {
