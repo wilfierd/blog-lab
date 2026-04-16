@@ -1,6 +1,7 @@
 *.png
 *.drawio
 *.md
-*.env
 
 .env
+# Terraform
+terraform/
