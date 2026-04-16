@@ -11,7 +11,7 @@ Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-Environment=AWS_SECRET_NAME=blog/prod/secrets
+Environment=AWS_SECRET_NAME=blog/prod/secrets-tf
 Environment=AWS_REGION=us-west-2
 
 [Install]
