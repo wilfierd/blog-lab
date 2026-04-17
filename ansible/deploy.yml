@@ -37,6 +37,7 @@
         - name: Kill any remaining processes
           shell: pkill -f {{ app_name }} || true
           become: yes
+          failed_when: false
 
         - name: Download binary from S3
           aws_s3:
