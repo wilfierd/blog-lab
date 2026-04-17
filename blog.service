@@ -13,6 +13,7 @@ StandardOutput=journal
 StandardError=journal
 Environment=AWS_SECRET_NAME=blog/prod/secrets-tf
 Environment=AWS_REGION=us-west-2
+Environment=GOOGLE_REDIRECT_URL=https://blog.wilfierd.engineer/auth/google/callback
 
 [Install]
 WantedBy=multi-user.target
