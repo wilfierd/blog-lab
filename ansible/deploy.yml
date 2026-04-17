@@ -40,20 +40,16 @@
           failed_when: false
 
         - name: Download binary from S3
-          aws_s3:
-            bucket: "{{ bucket }}"
-            object: "{{ app_name }}"
-            dest: "{{ app_dir }}/{{ app_name }}"
-            mode: get
-            region: "{{ region }}"
+          shell: |
+            aws s3 cp s3://{{ bucket }}/{{ app_name }} {{ app_dir }}/{{ app_name }} --region {{ region }}
+          args:
+            executable: /bin/bash
 
         - name: Download systemd service file
-          aws_s3:
-            bucket: "{{ bucket }}"
-            object: "{{ service_name }}"
-            dest: "/etc/systemd/system/{{ service_name }}"
-            mode: get
-            region: "{{ region }}"
+          shell: |
+            aws s3 cp s3://{{ bucket }}/{{ service_name }} /etc/systemd/system/{{ service_name }} --region {{ region }}
+          args:
+            executable: /bin/bash
           become: yes
 
         - name: Sync frontend files
