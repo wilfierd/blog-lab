@@ -13,115 +13,116 @@
     region: "{{ lookup('env', 'AWS_REGION') }}"
 
   tasks:
-    - name: Backup old binary
-      copy:
-        src: "{{ app_dir }}/{{ app_name }}"
-        dest: "{{ app_dir }}/{{ app_name }}.backup"
-        remote_src: yes
-        mode: '0755'
-      ignore_errors: yes
+    - block:
+        - name: Backup old binary
+          copy:
+            src: "{{ app_dir }}/{{ app_name }}"
+            dest: "{{ app_dir }}/{{ app_name }}.backup"
+            remote_src: yes
+            mode: '0755'
+          ignore_errors: yes
 
-    - name: Stop service
-      systemd:
-        name: "{{ service_name }}"
-        state: stopped
-      become: yes
-      ignore_errors: yes
+        - name: Stop service
+          systemd:
+            name: "{{ service_name }}"
+            state: stopped
+          become: yes
+          ignore_errors: yes
 
-    - name: Kill any remaining processes
-      shell: pkill -f {{ app_name }} || true
-      become: yes
+        - name: Kill any remaining processes
+          shell: pkill -f {{ app_name }} || true
+          become: yes
 
-    - name: Download binary from S3
-      aws_s3:
-        bucket: "{{ bucket }}"
-        object: "{{ app_name }}"
-        dest: "{{ app_dir }}/{{ app_name }}"
-        mode: get
-        region: "{{ region }}"
+        - name: Download binary from S3
+          aws_s3:
+            bucket: "{{ bucket }}"
+            object: "{{ app_name }}"
+            dest: "{{ app_dir }}/{{ app_name }}"
+            mode: get
+            region: "{{ region }}"
 
-    - name: Download systemd service file
-      aws_s3:
-        bucket: "{{ bucket }}"
-        object: "{{ service_name }}"
-        dest: "/etc/systemd/system/{{ service_name }}"
-        mode: get
-        region: "{{ region }}"
-      become: yes
+        - name: Download systemd service file
+          aws_s3:
+            bucket: "{{ bucket }}"
+            object: "{{ service_name }}"
+            dest: "/etc/systemd/system/{{ service_name }}"
+            mode: get
+            region: "{{ region }}"
+          become: yes
 
-    - name: Sync frontend files
-      shell: |
-        aws s3 sync s3://{{ bucket }}/frontend/ {{ app_dir }}/frontend/ --region {{ region }} --delete
-      args:
-        executable: /bin/bash
+        - name: Sync frontend files
+          shell: |
+            aws s3 sync s3://{{ bucket }}/frontend/ {{ app_dir }}/frontend/ --region {{ region }} --delete
+          args:
+            executable: /bin/bash
 
-    - name: Set executable permission
-      file:
-        path: "{{ app_dir }}/{{ app_name }}"
-        mode: '0755'
+        - name: Set executable permission
+          file:
+            path: "{{ app_dir }}/{{ app_name }}"
+            mode: '0755'
 
-    - name: Reload systemd daemon
-      systemd:
-        daemon_reload: yes
-      become: yes
+        - name: Reload systemd daemon
+          systemd:
+            daemon_reload: yes
+          become: yes
 
-    - name: Start service
-      systemd:
-        name: "{{ service_name }}"
-        state: started
-      become: yes
+        - name: Start service
+          systemd:
+            name: "{{ service_name }}"
+            state: started
+          become: yes
 
-    - name: Wait for service to be ready
-      wait_for:
-        timeout: 5
+        - name: Wait for service to be ready
+          wait_for:
+            timeout: 5
 
-    - name: Health check
-      uri:
-        url: http://localhost:8080/api/health
-        status_code: 200
-        timeout: 5
-      retries: 5
-      delay: 3
-      register: health_check
+        - name: Health check
+          uri:
+            url: http://localhost:8080/api/health
+            status_code: 200
+            timeout: 5
+          retries: 5
+          delay: 3
+          register: health_check
 
-    - name: Verify service is running
-      systemd:
-        name: "{{ service_name }}"
-        state: started
-      become: yes
-      check_mode: yes
-      register: service_status
+        - name: Verify service is running
+          systemd:
+            name: "{{ service_name }}"
+            state: started
+          become: yes
+          check_mode: yes
+          register: service_status
 
-  rescue:
-    - name: Rollback - Stop failed service
-      systemd:
-        name: "{{ service_name }}"
-        state: stopped
-      become: yes
-      ignore_errors: yes
+      rescue:
+        - name: Rollback - Stop failed service
+          systemd:
+            name: "{{ service_name }}"
+            state: stopped
+          become: yes
+          ignore_errors: yes
 
-    - name: Rollback - Restore backup binary
-      copy:
-        src: "{{ app_dir }}/{{ app_name }}.backup"
-        dest: "{{ app_dir }}/{{ app_name }}"
-        remote_src: yes
-        mode: '0755'
-      when: ansible_failed_result is defined
+        - name: Rollback - Restore backup binary
+          copy:
+            src: "{{ app_dir }}/{{ app_name }}.backup"
+            dest: "{{ app_dir }}/{{ app_name }}"
+            remote_src: yes
+            mode: '0755'
+          when: ansible_failed_result is defined
 
-    - name: Rollback - Restart service with old version
-      systemd:
-        name: "{{ service_name }}"
-        state: started
-      become: yes
+        - name: Rollback - Restart service with old version
+          systemd:
+            name: "{{ service_name }}"
+            state: started
+          become: yes
 
-    - name: Rollback - Verify old version is running
-      uri:
-        url: http://localhost:8080/api/health
-        status_code: 200
-      retries: 3
-      delay: 2
-      ignore_errors: yes
+        - name: Rollback - Verify old version is running
+          uri:
+            url: http://localhost:8080/api/health
+            status_code: 200
+          retries: 3
+          delay: 2
+          ignore_errors: yes
 
-    - name: Fail deployment
-      fail:
-        msg: "Deployment failed on {{ inventory_hostname }}, rolled back to previous version"
+        - name: Fail deployment
+          fail:
+            msg: "Deployment failed on {{ inventory_hostname }}, rolled back to previous version"
