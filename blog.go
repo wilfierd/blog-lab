@@ -4,19 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-	"os"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 func healthCheck(c *gin.Context) {
@@ -28,7 +29,22 @@ func healthCheck(c *gin.Context) {
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		redisStatus = "error: " + err.Error()
 	}
-	c.JSON(200, gin.H{"status": "ok", "db": dbStatus, "redis": redisStatus})
+	
+	// Lấy instance ID từ EC2 metadata (để test load balancing)
+	instanceID := os.Getenv("HOSTNAME") // Fallback to hostname
+	if metadata, err := http.Get("http://169.254.169.254/latest/meta-data/instance-id"); err == nil {
+		defer metadata.Body.Close()
+		if body, err := io.ReadAll(metadata.Body); err == nil {
+			instanceID = string(body)
+		}
+	}
+	
+	c.JSON(200, gin.H{
+		"status":      "ok",
+		"db":          dbStatus,
+		"redis":       redisStatus,
+		"instance_id": instanceID,
+	})
 }
 
 type Post struct {
