@@ -9,8 +9,6 @@
     ansible_connection: aws_ssm
     ansible_aws_ssm_bucket_name: ""
     ansible_aws_ssm_region: "{{ lookup('env', 'AWS_REGION') }}"
-
-  vars:
     app_dir: /home/ec2-user
     app_name: blog-app
     service_name: blog.service
