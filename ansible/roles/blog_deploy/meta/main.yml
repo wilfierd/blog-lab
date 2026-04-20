@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: blog-team
+  description: Rolling deploy of the blog app via AWS SSM (no SSH required)
+  min_ansible_version: "2.10"
+
+dependencies: []

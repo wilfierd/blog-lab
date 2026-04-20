@@ -1,0 +1,10 @@
+---
+app_dir:      /home/ec2-user
+app_name:     blog-app
+service_name: blog.service
+bucket:       "{{ lookup('env', 'AWS_BUCKET_NAME') }}"
+region:       "{{ lookup('env', 'AWS_REGION') }}"
+
+health_check_url:     http://localhost:8080/api/health
+health_check_retries: 5
+health_check_delay:   3

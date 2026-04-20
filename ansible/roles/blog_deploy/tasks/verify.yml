@@ -1,0 +1,23 @@
+---
+- name: Wait for service to initialise
+  wait_for:
+    timeout: 5
+
+- name: Health check
+  uri:
+    url: "{{ health_check_url }}"
+    status_code: 200
+    timeout: 5
+  register: health_result
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  until: health_result.status == 200
+
+- name: Verify service is active
+  systemd:
+    name: "{{ service_name }}"
+    state: started
+  become: yes
+  check_mode: yes
+  register: service_status
+  failed_when: service_status.changed

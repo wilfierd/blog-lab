@@ -1,0 +1,9 @@
+---
+- name: Deploy Blog App — Rolling Update (SSM, zero-downtime)
+  hosts: tag_Name_blog_app_asg_instance
+  serial: 1
+  max_fail_percentage: 0
+  gather_facts: no
+
+  roles:
+    - blog_deploy

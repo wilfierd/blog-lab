@@ -1,0 +1,11 @@
+---
+- name: reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: restart blog service
+  systemd:
+    name: "{{ service_name }}"
+    state: restarted
+  become: yes

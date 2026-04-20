@@ -1,0 +1,29 @@
+---
+- name: Rollback — stop failed service
+  systemd:
+    name: "{{ service_name }}"
+    state: stopped
+  become: yes
+  ignore_errors: yes
+
+- name: Rollback — restore previous binary
+  copy:
+    src: "{{ app_dir }}/{{ app_name }}.backup"
+    dest: "{{ app_dir }}/{{ app_name }}"
+    remote_src: yes
+    mode: "0755"
+  when: ansible_failed_result is defined
+
+- name: Rollback — restart service with old binary
+  systemd:
+    name: "{{ service_name }}"
+    state: started
+  become: yes
+
+- name: Rollback — verify old version is healthy
+  uri:
+    url: "{{ health_check_url }}"
+    status_code: 200
+  retries: 3
+  delay: 2
+  ignore_errors: yes

@@ -1,0 +1,60 @@
+---
+- name: Backup current binary
+  copy:
+    src: "{{ app_dir }}/{{ app_name }}"
+    dest: "{{ app_dir }}/{{ app_name }}.backup"
+    remote_src: yes
+    mode: "0755"
+  ignore_errors: yes
+
+- name: Stop service
+  systemd:
+    name: "{{ service_name }}"
+    state: stopped
+  become: yes
+  ignore_errors: yes
+
+- name: Kill any remaining processes
+  shell: pkill -f {{ app_name }} || true
+  become: yes
+  failed_when: false
+
+- name: Download application binary from S3
+  shell: >
+    aws s3 cp s3://{{ bucket }}/{{ app_name }}
+    {{ app_dir }}/{{ app_name }} --region {{ region }}
+  args:
+    executable: /bin/bash
+
+- name: Download systemd service file from S3
+  shell: >
+    aws s3 cp s3://{{ bucket }}/{{ service_name }}
+    /etc/systemd/system/{{ service_name }} --region {{ region }}
+  args:
+    executable: /bin/bash
+  become: yes
+  notify: reload systemd daemon
+
+- name: Sync frontend assets from S3
+  shell: >
+    aws s3 sync s3://{{ bucket }}/frontend/
+    {{ app_dir }}/frontend/ --region {{ region }} --delete
+  args:
+    executable: /bin/bash
+
+- name: Set executable permission on binary
+  file:
+    path: "{{ app_dir }}/{{ app_name }}"
+    mode: "0755"
+    owner: ec2-user
+    group: ec2-user
+
+- name: Flush handlers (reload systemd before start)
+  meta: flush_handlers
+
+- name: Start service
+  systemd:
+    name: "{{ service_name }}"
+    state: started
+    enabled: yes
+  become: yes

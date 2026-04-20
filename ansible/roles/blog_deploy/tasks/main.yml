@@ -1,0 +1,9 @@
+---
+- block:
+    - include_tasks: deploy.yml
+    - include_tasks: verify.yml
+  rescue:
+    - include_tasks: rollback.yml
+    - name: Fail deployment
+      fail:
+        msg: "Deployment failed on {{ inventory_hostname }}, rolled back to previous version"
