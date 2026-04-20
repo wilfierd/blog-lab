@@ -1,6 +1,16 @@
 *.png
 *.drawio
-*.md
 
+# Secrets & local env
 .env
-*terraform.tfvars
+*.tfvars
+*.tfvars.json
+
+# Terraform runtime (never commit)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+
+# Keep: .terraform.lock.hcl (pins provider versions — should be committed)
+*.md
