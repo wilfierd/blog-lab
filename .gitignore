@@ -3,5 +3,4 @@
 *.md
 
 .env
-# Terraform
-terraform/
+*terraform.tfvars
