@@ -25,6 +25,10 @@
     {{ app_dir }}/{{ app_name }} --region {{ region }}
   args:
     executable: /bin/bash
+  retries: 3
+  delay: 10
+  register: result
+  until: result.rc == 0
 
 - name: Download systemd service file from S3
   shell: >
@@ -33,6 +37,10 @@
   args:
     executable: /bin/bash
   become: yes
+  retries: 3
+  delay: 10
+  register: result
+  until: result.rc == 0
   notify: reload systemd daemon
 
 - name: Sync frontend assets from S3
@@ -41,6 +49,10 @@
     {{ app_dir }}/frontend/ --region {{ region }} --delete
   args:
     executable: /bin/bash
+  retries: 3
+  delay: 10
+  register: result
+  until: result.rc == 0
 
 - name: Set executable permission on binary
   file:
