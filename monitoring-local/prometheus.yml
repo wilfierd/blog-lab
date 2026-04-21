@@ -19,14 +19,14 @@ scrape_configs:
     metrics_path: /metrics
 
   # ── AWS — Blog app qua ALB (public) ────────────────────────────────────────
-  # - job_name: 'blog-app-ec2'
-  #   static_configs:
-  #     - targets: ['<ALB_DNS_NAME>']
-  #   metrics_path: /metrics
-  #   scheme: http
+  - job_name: 'blog-app-ec2'
+    static_configs:
+      - targets: ['blog-alb-304785625.us-west-2.elb.amazonaws.com']
+    metrics_path: /metrics
+    scheme: http
 
   # ── AWS — CloudWatch (RDS, Redis, ALB, EC2/ASG) ─────────────────────────────
-  # - job_name: 'cloudwatch'
-  #   static_configs:
-  #     - targets: ['cloudwatch-exporter-local:9106']
-  #   metrics_path: /metrics
+  - job_name: 'cloudwatch'
+    static_configs:
+      - targets: ['cloudwatch-exporter-local:9106']
+    metrics_path: /metrics
