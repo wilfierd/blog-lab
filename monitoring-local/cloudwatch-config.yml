@@ -1,0 +1,132 @@
+region: us-west-2
+
+metrics:
+  # ── RDS PostgreSQL ──────────────────────────────────────────────────────────
+  - aws_namespace: AWS/RDS
+    aws_metric_name: DatabaseConnections
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeableMemory
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeStorageSpace
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: ReadLatency
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average, p99]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: WriteLatency
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average, p99]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  # ── ElastiCache Redis ───────────────────────────────────────────────────────
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: CacheHits
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: CacheMisses
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: CurrConnections
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: BytesUsedForCache
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: Evictions
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: CurrItems
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  # ── ALB ─────────────────────────────────────────────────────────────────────
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: RequestCount
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HTTPCode_ELB_5XX_Count
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HTTPCode_Target_2XX_Count
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: TargetResponseTime
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Average, p99]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HealthyHostCount
+    aws_dimensions: [LoadBalancer, TargetGroup]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: UnHealthyHostCount
+    aws_dimensions: [LoadBalancer, TargetGroup]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  # ── EC2 / ASG ───────────────────────────────────────────────────────────────
+  - aws_namespace: AWS/EC2
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average, Maximum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/AutoScaling
+    aws_metric_name: GroupInServiceInstances
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/AutoScaling
+    aws_metric_name: GroupDesiredCapacity
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60

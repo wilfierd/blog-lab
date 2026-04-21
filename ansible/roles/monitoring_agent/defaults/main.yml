@@ -1,0 +1,7 @@
+node_exporter_version: "1.8.2"
+node_exporter_port: 9100
+
+loki_local_tailscale_ip: ""   # set via extra-vars: -e loki_local_tailscale_ip=100.x.x.x
+loki_port: 3100
+
+tailscale_authkey: ""         # set via extra-vars or secret: -e tailscale_authkey=tskey-...

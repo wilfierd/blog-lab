@@ -51,3 +51,10 @@ variable "google_redirect_url" {
   type        = string
   default     = "https://blog.wilfierd.engineer/auth/google/callback"
 }
+
+variable "tailscale_authkey" {
+  description = "Tailscale auth key for EC2 instances"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -18,12 +18,15 @@ scrape_configs:
       - targets: ['blog-app-local:8080']
     metrics_path: /metrics
 
-  # ── AWS (uncomment + replace IP when deployed) ─────────────────────────────
+  # ── AWS — Blog app qua ALB (public) ────────────────────────────────────────
   # - job_name: 'blog-app-ec2'
   #   static_configs:
-  #     - targets: ['<EC2_PRIVATE_IP>:8080']
+  #     - targets: ['<ALB_DNS_NAME>']
   #   metrics_path: /metrics
+  #   scheme: http
 
-  # - job_name: 'node-exporter-ec2'
+  # ── AWS — CloudWatch (RDS, Redis, ALB, EC2/ASG) ─────────────────────────────
+  # - job_name: 'cloudwatch'
   #   static_configs:
-  #     - targets: ['<EC2_PRIVATE_IP>:9100']
+  #     - targets: ['cloudwatch-exporter-local:9106']
+  #   metrics_path: /metrics

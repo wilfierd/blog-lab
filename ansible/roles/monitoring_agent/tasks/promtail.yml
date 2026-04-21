@@ -1,0 +1,77 @@
+---
+- name: Download Promtail
+  get_url:
+    url: "https://github.com/grafana/loki/releases/download/v2.9.9/promtail-linux-arm64.zip"
+    dest: /tmp/promtail.zip
+
+- name: Extract Promtail
+  unarchive:
+    src: /tmp/promtail.zip
+    dest: /tmp/
+    remote_src: yes
+
+- name: Install Promtail binary
+  copy:
+    src: /tmp/promtail-linux-arm64
+    dest: /usr/local/bin/promtail
+    mode: "0755"
+    remote_src: yes
+
+- name: Create Promtail config directory
+  file:
+    path: /etc/promtail
+    state: directory
+
+- name: Write Promtail config
+  copy:
+    dest: /etc/promtail/config.yml
+    content: |
+      server:
+        http_listen_port: 9080
+        grpc_listen_port: 0
+
+      positions:
+        filename: /tmp/promtail-positions.yaml
+
+      clients:
+        - url: http://{{ loki_local_tailscale_ip }}:{{ loki_port }}/loki/api/v1/push
+
+      scrape_configs:
+        - job_name: blog-app
+          static_configs:
+            - targets: [localhost]
+              labels:
+                job: blog-app
+                host: "{{ ansible_hostname }}"
+                __path__: /var/log/blog-app.log
+
+        - job_name: system
+          static_configs:
+            - targets: [localhost]
+              labels:
+                job: syslog
+                host: "{{ ansible_hostname }}"
+                __path__: /var/log/messages
+
+- name: Create Promtail systemd service
+  copy:
+    dest: /etc/systemd/system/promtail.service
+    content: |
+      [Unit]
+      Description=Grafana Promtail
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/config.yml
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable and start Promtail
+  systemd:
+    name: promtail
+    enabled: yes
+    state: started
+    daemon_reload: yes

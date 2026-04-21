@@ -1,0 +1,12 @@
+---
+- name: Deploy monitoring agents to app EC2s
+  hosts: tag_Name_blog_app_asg_instance
+  become: yes
+
+  roles:
+    - monitoring_agent
+
+  # Usage:
+  # ansible-playbook playbooks/deploy_monitoring_agent.yml \
+  #   -e tailscale_authkey=tskey-auth-xxxx \
+  #   -e loki_local_tailscale_ip=100.x.x.x

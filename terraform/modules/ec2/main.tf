@@ -85,6 +85,7 @@ data "aws_ami" "amazon_linux_2023_arm64" {
 locals {
   user_data = <<-EOF
     #!/bin/bash
+    # Deploy blog app
     aws s3 cp s3://${var.s3_bucket_name}/blog-app /home/ec2-user/blog-app --region ${var.aws_region}
     aws s3 cp s3://${var.s3_bucket_name}/blog.service /home/ec2-user/blog.service --region ${var.aws_region}
     aws s3 sync s3://${var.s3_bucket_name}/frontend/ /home/ec2-user/frontend/ --region ${var.aws_region}
@@ -94,6 +95,13 @@ locals {
     systemctl daemon-reload
     systemctl enable blog.service
     systemctl start blog.service
+
+    # Install Tailscale (for monitoring agent connectivity)
+    %{if var.tailscale_authkey != ""}
+    curl -fsSL https://tailscale.com/install.sh | sh
+    systemctl enable --now tailscaled
+    tailscale up --authkey=${var.tailscale_authkey} --accept-routes
+    %{endif}
   EOF
 }
 

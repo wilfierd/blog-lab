@@ -69,4 +69,5 @@ module "ec2" {
   s3_bucket_arn      = module.s3.bucket_arn
   secret_arn         = module.secrets.arn
   aws_region         = var.aws_region
+  tailscale_authkey  = var.tailscale_authkey
 }
