@@ -42,7 +42,7 @@
             - targets: [localhost]
               labels:
                 job: blog-app
-                host: "{{ ansible_hostname }}"
+                host: "{{ inventory_hostname }}"
                 __path__: /var/log/blog-app.log
 
         - job_name: system
@@ -50,7 +50,7 @@
             - targets: [localhost]
               labels:
                 job: syslog
-                host: "{{ ansible_hostname }}"
+                host: "{{ inventory_hostname }}"
                 __path__: /var/log/messages
 
 - name: Create Promtail systemd service
