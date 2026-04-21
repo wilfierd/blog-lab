@@ -79,36 +79,50 @@ metrics:
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: RequestCount
     aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
     aws_statistics: [Sum]
     period_seconds: 60
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: HTTPCode_ELB_5XX_Count
     aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
     aws_statistics: [Sum]
     period_seconds: 60
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: HTTPCode_Target_2XX_Count
     aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
     aws_statistics: [Sum]
     period_seconds: 60
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: TargetResponseTime
     aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
     aws_statistics: [Average, p99]
     period_seconds: 60
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: HealthyHostCount
     aws_dimensions: [LoadBalancer, TargetGroup]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
+      TargetGroup: ["targetgroup/blog-tg/fe803ee57bc733d1"]
     aws_statistics: [Average]
     period_seconds: 60
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: UnHealthyHostCount
     aws_dimensions: [LoadBalancer, TargetGroup]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
+      TargetGroup: ["targetgroup/blog-tg/fe803ee57bc733d1"]
     aws_statistics: [Average]
     period_seconds: 60
 
