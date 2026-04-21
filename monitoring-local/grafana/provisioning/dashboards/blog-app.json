@@ -1,0 +1,319 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "type": "datasource",
+      "pluginId": "prometheus"
+    }
+  ],
+  "uid": "blog-app-v3",
+  "title": "Blog App — Traffic & Performance",
+  "tags": ["blog"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "Prometheus" },
+        "hide": 2
+      }
+    ]
+  },
+  "panels": [
+
+    { "id": 1, "title": "Req / min", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health'}[5m])) * 60",
+        "legendFormat": "req/min"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background", "graphMode": "area", "orientation": "auto",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short", "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "blue", "value": null },
+            { "color": "green", "value": 1 }
+          ]}
+        }
+      }
+    },
+
+    { "id": 2, "title": "Error Rate", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "100 * sum(rate(blog_http_requests_total{job='blog-app-ec2', status=~'[45]..', path!~'/metrics|/api/health'}[5m])) / (sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health'}[5m])) + 0.0001)",
+        "legendFormat": "error %"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background", "graphMode": "area", "orientation": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 1 },
+            { "color": "red", "value": 5 }
+          ]}
+        }
+      }
+    },
+
+    { "id": 3, "title": "P95 Latency", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2'}[5m])) by (le)) * 1000",
+        "legendFormat": "p95 ms"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background", "graphMode": "area", "orientation": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms", "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 200 },
+            { "color": "red", "value": 500 }
+          ]}
+        }
+      }
+    },
+
+    { "id": 4, "title": "Active Sessions", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "blog_active_sessions{job='blog-app-ec2'}",
+        "legendFormat": "sessions"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background", "graphMode": "area", "orientation": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "blue", "value": null }
+          ]}
+        }
+      }
+    },
+
+    { "id": 5, "title": "DB Connections", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "blog_db_open_connections{job='blog-app-ec2'}", "legendFormat": "open" },
+        { "expr": "blog_db_in_use_connections{job='blog-app-ec2'}", "legendFormat": "in use" }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value", "graphMode": "none", "orientation": "vertical",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 15 },
+            { "color": "red", "value": 25 }
+          ]}
+        }
+      }
+    },
+
+    { "id": 6, "title": "ALB Healthy Hosts", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "aws_applicationelb_healthy_host_count_average", "legendFormat": "healthy" },
+        { "expr": "aws_applicationelb_un_healthy_host_count_average", "legendFormat": "unhealthy" }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value", "graphMode": "none", "orientation": "vertical",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short", "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }
+          ]}
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "unhealthy" },
+            "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]}}]
+          }
+        ]
+      }
+    },
+
+    { "id": 10, "title": "Request Rate by Path (req/min)", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "topk(8, sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health'}[5m])) by (path)) * 60",
+        "legendFormat": "{{path}}"
+      }],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2, "fillOpacity": 8, "gradientMode": "none",
+            "spanNulls": false, "showPoints": "never"
+          }
+        }
+      }
+    },
+
+    { "id": 11, "title": "HTTP Status Breakdown (req/min)", "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health'}[5m])) by (status) * 60",
+        "legendFormat": "{{status}}"
+      }],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2, "fillOpacity": 15, "gradientMode": "none",
+            "stacking": { "mode": "normal", "group": "A" },
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": "^2" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          },
+          { "matcher": { "id": "byRegexp", "options": "^3" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+          },
+          { "matcher": { "id": "byRegexp", "options": "^4" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+          },
+          { "matcher": { "id": "byRegexp", "options": "^5" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          }
+        ]
+      }
+    },
+
+    { "id": 20, "title": "Response Time Percentiles (ms)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2'}[5m])) by (le)) * 1000", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2'}[5m])) by (le)) * 1000", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2'}[5m])) by (le)) * 1000", "legendFormat": "p99" },
+        { "expr": "sum(rate(blog_http_request_duration_seconds_sum{job='blog-app-ec2'}[5m])) / sum(rate(blog_http_request_duration_seconds_count{job='blog-app-ec2'}[5m])) * 1000", "legendFormat": "avg" }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max", "mean"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2, "fillOpacity": 6, "gradientMode": "opacity",
+            "spanNulls": true, "showPoints": "never"
+          },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 200 },
+            { "color": "red", "value": 500 }
+          ]}
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "p99" },
+            "properties": [{ "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }]
+          }
+        ]
+      }
+    },
+
+    { "id": 21, "title": "DB Pool", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "blog_db_open_connections{job='blog-app-ec2'}", "legendFormat": "open" },
+        { "expr": "blog_db_in_use_connections{job='blog-app-ec2'}", "legendFormat": "in use" }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2, "fillOpacity": 20, "gradientMode": "none",
+            "showPoints": "never"
+          }
+        }
+      }
+    },
+
+    { "id": 30, "title": "Error Paths (4xx / 5xx)", "type": "timeseries",
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', status=~'[45]..', path!~'/metrics|/api/health'}[5m])) by (path, status, method) * 60",
+        "legendFormat": "{{method}} {{path}} → {{status}}"
+      }],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "sum"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2, "fillOpacity": 5,
+            "showPoints": "auto", "pointSize": 5
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    }
+
+  ]
+}

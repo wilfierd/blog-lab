@@ -27,6 +27,8 @@ scrape_configs:
 
   # ── AWS — CloudWatch (RDS, Redis, ALB, EC2/ASG) ─────────────────────────────
   - job_name: 'cloudwatch'
+    scrape_interval: 60s
+    scrape_timeout: 55s
     static_configs:
       - targets: ['cloudwatch-exporter-local:9106']
     metrics_path: /metrics
