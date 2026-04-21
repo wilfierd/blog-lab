@@ -2,6 +2,13 @@
 - name: Deploy monitoring agents to app EC2s
   hosts: tag_Name_blog_app_asg_instance
   become: yes
+  gather_facts: no
+
+  pre_tasks:
+    - name: Wait for SSM connection (up to 3 minutes)
+      wait_for_connection:
+        timeout: 180
+        sleep: 10
 
   roles:
     - monitoring_agent

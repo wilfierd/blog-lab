@@ -103,13 +103,16 @@ jobs:
 
     - name: Deploy Monitoring Agent
       env:
-        AWS_REGION: ${{ secrets.AWS_REGION }}
         ANSIBLE_HOST_KEY_CHECKING: "False"
       run: |
+        BUCKET=$(echo "${{ secrets.AWS_BUCKET_NAME }}" | tr -d '[:space:]')
+        REGION=$(echo "${{ secrets.AWS_REGION }}" | tr -d '[:space:]')
         cd ansible
         ansible-playbook playbooks/deploy_monitoring_agent.yml \
-          -e tailscale_authkey=${{ secrets.TAILSCALE_AUTHKEY }} \
-          -e loki_local_tailscale_ip=${{ secrets.LOKI_TAILSCALE_IP }}
+          -e "bucket=${BUCKET}" \
+          -e "region=${REGION}" \
+          -e "tailscale_authkey=${{ secrets.TAILSCALE_AUTHKEY }}" \
+          -e "loki_local_tailscale_ip=${{ secrets.LOKI_TAILSCALE_IP }}"
 
   # ──────────────────────────────────────────────
   # JOB 3: VERIFY
