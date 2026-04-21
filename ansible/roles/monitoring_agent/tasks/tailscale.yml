@@ -10,7 +10,16 @@
     enabled: yes
     state: started
 
+- name: Wait for tailscaled to be ready
+  pause:
+    seconds: 5
+
+- name: Check if already connected to Tailscale
+  shell: tailscale status --json | python3 -c "import sys,json; s=json.load(sys.stdin); print('up' if s.get('BackendState') == 'Running' else 'down')"
+  register: ts_status
+  changed_when: false
+  failed_when: false
+
 - name: Join Tailscale network
-  shell: tailscale up --authkey={{ tailscale_authkey }} --accept-routes
-  args:
-    creates: /var/lib/tailscale/tailscaled.state
+  shell: tailscale up --authkey={{ tailscale_authkey }} --accept-routes --timeout=30s
+  when: ts_status.stdout != 'up'
