@@ -78,7 +78,11 @@ func main() {
 
 	go collectDBStats()
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/metrics", "/api/health"},
+	}))
 	r.MaxMultipartMemory = 8 << 20 // 8MB
 	r.Use(corsMiddleware())
 	r.Use(prometheusMiddleware())

@@ -292,8 +292,88 @@
       }
     },
 
+    { "id": 25, "title": "Go Runtime", "type": "row", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 } },
+
+    { "id": 26, "title": "Heap Memory", "type": "gauge", "gridPos": { "h": 4, "w": 4, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "go_memstats_alloc_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap MB" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "min": 0, "max": 512, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":200},{"color":"red","value":400}] }
+      }}
+    },
+
+    { "id": 27, "title": "Sys / Stack Memory", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 4, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "go_memstats_sys_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "sys MB" },
+        { "expr": "go_memstats_stack_inuse_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "stack MB" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "blue" } }}
+    },
+
+    { "id": 28, "title": "Goroutines", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 8, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "go_goroutines{job='blog-app-ec2'}", "legendFormat": "goroutines" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":500},{"color":"red","value":1000}] }
+      }}
+    },
+
+    { "id": 29, "title": "GC Pause avg", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 12, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "rate(go_gc_duration_seconds_sum{job='blog-app-ec2'}[5m]) / rate(go_gc_duration_seconds_count{job='blog-app-ec2'}[5m]) * 1000", "legendFormat": "avg ms" },
+        { "expr": "rate(go_gc_duration_seconds_count{job='blog-app-ec2'}[5m]) * 60", "legendFormat": "gc/min" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 2, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":5},{"color":"red","value":20}] }
+      }}
+    },
+
+    { "id": 31, "title": "File Descriptors", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 16, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "process_open_fds{job='blog-app-ec2'}", "legendFormat": "open" },
+        { "expr": "process_max_fds{job='blog-app-ec2'}", "legendFormat": "limit" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "blue" } }}
+    },
+
+    { "id": 32, "title": "Process Uptime", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 20, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "time() - process_start_time_seconds{job='blog-app-ec2'}", "legendFormat": "uptime" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "fixed", "fixedColor": "green" } }}
+    },
+
+    { "id": 33, "title": "Memory over Time", "type": "timeseries", "gridPos": { "h": 6, "w": 12, "x": 0, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "go_memstats_alloc_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap alloc MB" },
+        { "expr": "go_memstats_heap_idle_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap idle MB" },
+        { "expr": "go_memstats_sys_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "sys MB" }
+      ],
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull","max"] } },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "spanNulls": true } }}
+    },
+
+    { "id": 34, "title": "Goroutines & GC over Time", "type": "timeseries", "gridPos": { "h": 6, "w": 12, "x": 12, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "go_goroutines{job='blog-app-ec2'}", "legendFormat": "goroutines" },
+        { "expr": "rate(go_gc_duration_seconds_count{job='blog-app-ec2'}[5m]) * 60", "legendFormat": "gc/min" }
+      ],
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "spanNulls": true } }}
+    },
+
     { "id": 30, "title": "Error Paths (4xx / 5xx)", "type": "timeseries",
-      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 21 },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 33 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [{
         "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', status=~'[45]..', path!~'/metrics|/api/health'}[5m])) by (path, status, method) * 60",

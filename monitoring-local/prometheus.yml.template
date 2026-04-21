@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter-local:9100']
+
+  # ── AWS — Blog app qua ALB ──────────────────────────────────────────────────
+  - job_name: 'blog-app-ec2'
+    static_configs:
+      - targets: ['${ALB_DNS}']
+    metrics_path: /metrics
+    scheme: http
+
+  # ── AWS — CloudWatch (RDS, Redis, ALB, EC2/ASG) ─────────────────────────────
+  # honor_timestamps: false — CloudWatch exporter sets old timestamps (CW data delay),
+  # causing instant queries to return empty. Use scrape time instead.
+  - job_name: 'cloudwatch'
+    scrape_interval: 60s
+    scrape_timeout: 55s
+    honor_timestamps: false
+    static_configs:
+      - targets: ['cloudwatch-exporter-local:9106']
+    metrics_path: /metrics

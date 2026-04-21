@@ -9,14 +9,15 @@ clients:
   - url: http://loki-local:3100/loki/api/v1/push
 
 scrape_configs:
-  # System logs
+  # System logs (Fedora: /var/log/messages — cần chmod 644)
   - job_name: system
     static_configs:
       - targets: [localhost]
         labels:
           job: syslog
+          service_name: syslog
           host: local
-          __path__: /var/log/syslog
+          __path__: /var/log/messages
 
   # Blog app log (stdout redirected to file)
   - job_name: blog-app
@@ -24,15 +25,6 @@ scrape_configs:
       - targets: [localhost]
         labels:
           job: blog-app
+          service_name: blog-app
           host: local
           __path__: /app/logs/blog-app.log
-
-  # Journal logs (systemd — works on Amazon Linux 2023)
-  - job_name: journal
-    journal:
-      max_age: 12h
-      labels:
-        job: systemd-journal
-    relabel_configs:
-      - source_labels: [__journal__systemd_unit]
-        target_label: unit

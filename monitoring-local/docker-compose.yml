@@ -5,8 +5,15 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus-local
     restart: unless-stopped
+    env_file: ../.env
+    entrypoint:
+      - sh
+      - -c
+      - |
+        envsubst < /etc/prometheus/prometheus.yml.template > /etc/prometheus/prometheus.yml
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml.template:/etc/prometheus/prometheus.yml.template:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -27,7 +34,7 @@ services:
     user: "0:0"
     restart: unless-stopped
     volumes:
-      - /var/log:/var/log
+      - /var/log:/var/log:ro
       - ./logs:/app/logs
       - ./promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
@@ -86,8 +93,15 @@ services:
     image: prom/cloudwatch-exporter:latest
     container_name: cloudwatch-exporter-local
     restart: unless-stopped
+    env_file: ../.env
+    entrypoint:
+      - sh
+      - -c
+      - |
+        envsubst < /config/config.yml.template > /config/config.yml
+        exec java -jar /cloudwatch_exporter.jar 9106 /config/config.yml
     volumes:
-      - ./cloudwatch-config.yml:/config/config.yml
+      - ./cloudwatch-config.yml.template:/config/config.yml.template:ro
     ports:
       - "9106:9106"
     environment:

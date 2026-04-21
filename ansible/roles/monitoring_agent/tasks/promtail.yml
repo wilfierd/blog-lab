@@ -37,21 +37,33 @@
         - url: http://{{ loki_local_tailscale_ip }}:{{ loki_port }}/loki/api/v1/push
 
       scrape_configs:
+        # blog.service logs via journald (StandardOutput=journal)
         - job_name: blog-app
-          static_configs:
-            - targets: [localhost]
-              labels:
-                job: blog-app
-                host: "{{ inventory_hostname }}"
-                __path__: /var/log/blog-app.log
+          journal:
+            max_age: 12h
+            labels:
+              job: blog-app
+              service_name: blog-app
+              host: "{{ inventory_hostname }}"
+          relabel_configs:
+            - source_labels: [__journal__systemd_unit]
+              regex: blog\.service
+              action: keep
 
+        # System logs via journald (everything except blog.service)
         - job_name: system
-          static_configs:
-            - targets: [localhost]
-              labels:
-                job: syslog
-                host: "{{ inventory_hostname }}"
-                __path__: /var/log/messages
+          journal:
+            max_age: 12h
+            labels:
+              job: syslog
+              service_name: syslog
+              host: "{{ inventory_hostname }}"
+          relabel_configs:
+            - source_labels: [__journal__systemd_unit]
+              regex: blog\.service
+              action: drop
+            - source_labels: [__journal__systemd_unit]
+              target_label: unit
 
 - name: Create Promtail systemd service
   copy:

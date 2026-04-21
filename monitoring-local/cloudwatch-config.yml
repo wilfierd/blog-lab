@@ -21,6 +21,12 @@ metrics:
     period_seconds: 60
 
   - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average, Maximum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
     aws_metric_name: ReadLatency
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average, Maximum]
@@ -33,7 +39,37 @@ metrics:
     period_seconds: 60
 
   - aws_namespace: AWS/RDS
-    aws_metric_name: CPUUtilization
+    aws_metric_name: ReadIOPS
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: WriteIOPS
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: SwapUsage
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: Deadlocks
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: NetworkReceiveThroughput
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: NetworkTransmitThroughput
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
     period_seconds: 60
@@ -58,6 +94,12 @@ metrics:
     period_seconds: 60
 
   - aws_namespace: AWS/ElastiCache
+    aws_metric_name: NewConnections
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
     aws_metric_name: BytesUsedForCache
     aws_dimensions: [CacheClusterId]
     aws_statistics: [Average]
@@ -75,12 +117,36 @@ metrics:
     aws_statistics: [Average]
     period_seconds: 60
 
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: EngineCPUUtilization
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: NetworkBytesIn
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: NetworkBytesOut
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: ReplicationLag
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average, Maximum]
+    period_seconds: 60
+
   # ── ALB ─────────────────────────────────────────────────────────────────────
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: RequestCount
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -88,7 +154,7 @@ metrics:
     aws_metric_name: HTTPCode_ELB_5XX_Count
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -96,7 +162,23 @@ metrics:
     aws_metric_name: HTTPCode_Target_2XX_Count
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HTTPCode_Target_4XX_Count
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HTTPCode_Target_5XX_Count
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -104,16 +186,32 @@ metrics:
     aws_metric_name: TargetResponseTime
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
     aws_statistics: [Average, Maximum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: ActiveConnectionCount
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: ProcessedBytes
+    aws_dimensions: [LoadBalancer]
+    aws_dimension_select_regex:
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+    aws_statistics: [Sum]
     period_seconds: 60
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: HealthyHostCount
     aws_dimensions: [LoadBalancer, TargetGroup]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
-      TargetGroup: ["targetgroup/blog-tg/fe803ee57bc733d1"]
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      TargetGroup: ["targetgroup/blog-tg/44d6541ff7ac433b"]
     aws_statistics: [Average]
     period_seconds: 60
 
@@ -121,8 +219,8 @@ metrics:
     aws_metric_name: UnHealthyHostCount
     aws_dimensions: [LoadBalancer, TargetGroup]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/d29bbdb9919229ae"]
-      TargetGroup: ["targetgroup/blog-tg/fe803ee57bc733d1"]
+      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      TargetGroup: ["targetgroup/blog-tg/44d6541ff7ac433b"]
     aws_statistics: [Average]
     period_seconds: 60
 
@@ -133,6 +231,48 @@ metrics:
     aws_statistics: [Average, Maximum]
     period_seconds: 60
 
+  - aws_namespace: AWS/EC2
+    aws_metric_name: NetworkIn
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: NetworkOut
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: DiskReadBytes
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: DiskWriteBytes
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: DiskReadOps
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: DiskWriteOps
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: StatusCheckFailed
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Sum]
+    period_seconds: 60
+
   - aws_namespace: AWS/AutoScaling
     aws_metric_name: GroupInServiceInstances
     aws_dimensions: [AutoScalingGroupName]
@@ -141,6 +281,18 @@ metrics:
 
   - aws_namespace: AWS/AutoScaling
     aws_metric_name: GroupDesiredCapacity
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/AutoScaling
+    aws_metric_name: GroupMinSize
+    aws_dimensions: [AutoScalingGroupName]
+    aws_statistics: [Average]
+    period_seconds: 60
+
+  - aws_namespace: AWS/AutoScaling
+    aws_metric_name: GroupMaxSize
     aws_dimensions: [AutoScalingGroupName]
     aws_statistics: [Average]
     period_seconds: 60
