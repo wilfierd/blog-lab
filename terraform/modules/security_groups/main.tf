@@ -34,14 +34,6 @@ resource "aws_security_group" "app" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  ingress {
-    description = "SSH for emergency access"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0

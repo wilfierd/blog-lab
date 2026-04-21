@@ -92,12 +92,14 @@ jobs:
 
     - name: Run Ansible Playbook
       env:
-        AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
         ANSIBLE_HOST_KEY_CHECKING: "False"
       run: |
+        BUCKET=$(echo "${{ secrets.AWS_BUCKET_NAME }}" | tr -d '[:space:]')
+        REGION=$(echo "${{ secrets.AWS_REGION }}" | tr -d '[:space:]')
         cd ansible
-        ansible-playbook playbooks/deploy.yml
+        ansible-playbook playbooks/deploy.yml \
+          -e "bucket=${BUCKET}" \
+          -e "region=${REGION}"
 
     - name: Deploy Monitoring Agent
       env:
