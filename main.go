@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -33,9 +34,13 @@ func main() {
 		loadSecretsFromAWS(secretName)
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
+	sslMode := os.Getenv("DB_SSLMODE")
+	if sslMode == "" {
+		sslMode = "require"
+	}
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s connect_timeout=5",
 		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"),
-		os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"),
+		os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), sslMode,
 	)
 	var err error
 	db, err = sql.Open("postgres", dsn)
@@ -71,9 +76,15 @@ func main() {
 		Endpoint:     google.Endpoint,
 	}
 
+	go collectDBStats()
+
 	r := gin.Default()
 	r.MaxMultipartMemory = 8 << 20 // 8MB
 	r.Use(corsMiddleware())
+	r.Use(prometheusMiddleware())
+
+	// Prometheus metrics endpoint
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Auth
 	r.GET("/auth/google", handleGoogleLogin)

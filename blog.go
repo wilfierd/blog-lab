@@ -314,6 +314,7 @@ func handlePresignUpload(c *gin.Context) {
 	expireSec := getenvInt("PRESIGN_EXPIRE_SECONDS", 120)
 
 	if bucket == "" || region == "" {
+		s3UploadTotal.WithLabelValues("error").Inc()
 		c.JSON(500, gin.H{"error": "AWS configuration missing"})
 		return
 	}
@@ -332,10 +333,12 @@ func handlePresignUpload(c *gin.Context) {
 		ContentType: aws.String(req.ContentType),
 	}, s3.WithPresignExpires(time.Duration(expireSec)*time.Second))
 	if err != nil {
+		s3UploadTotal.WithLabelValues("error").Inc()
 		c.JSON(500, gin.H{"error": "failed to presign put object: " + err.Error()})
 		return
 	}
 
+	s3UploadTotal.WithLabelValues("ok").Inc()
 	c.JSON(200, gin.H{
 		"uploadUrl": out.URL,
 		"key":       key,

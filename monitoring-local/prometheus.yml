@@ -1,20 +1,29 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'prometheus-self'
+  - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'local-infrastructure'
+  # System metrics from this machine
+  - job_name: 'node-exporter'
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ['node-exporter-local:9100']
 
-  # Mẫu để sau này kéo metrics từ EC2 (Bạn chỉ cần đổi IP sau)
-  - job_name: 'ec2-infrastructure'
+  # Blog app — runs as container in same network
+  - job_name: 'blog-app-local'
     static_configs:
-      - targets: ['<YOUR_EC2_PUBLIC_IP>:9100']
+      - targets: ['blog-app-local:8080']
+    metrics_path: /metrics
 
-  - job_name: 'ec2-go-app'
-    static_configs:
-      - targets: ['<YOUR_EC2_PUBLIC_IP>:8080']
+  # ── AWS (uncomment + replace IP when deployed) ─────────────────────────────
+  # - job_name: 'blog-app-ec2'
+  #   static_configs:
+  #     - targets: ['<EC2_PRIVATE_IP>:8080']
+  #   metrics_path: /metrics
+
+  # - job_name: 'node-exporter-ec2'
+  #   static_configs:
+  #     - targets: ['<EC2_PRIVATE_IP>:9100']

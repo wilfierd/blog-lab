@@ -52,6 +52,33 @@ services:
     ports:
       - "9101:9100"
 
+  blog-app:
+    image: fedora:latest
+    container_name: blog-app-local
+    restart: unless-stopped
+    working_dir: /app
+    command: ./blog-app-bin
+    environment:
+      - DB_HOST=host.containers.internal
+      - DB_PORT=5432
+      - DB_USER=admins
+      - DB_PASSWORD=secretpassword
+      - DB_NAME=blogdb
+      - DB_SSLMODE=disable
+      - REDIS_ADDR=host.containers.internal:6379
+      - SESSION_SECRET=supersecretrandomstring
+      - GOOGLE_REDIRECT_URL=http://localhost:8080/auth/google/callback
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+    volumes:
+      - ..:/app:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - prometheus
+
 volumes:
   prometheus_data:
   grafana_data:
