@@ -97,7 +97,7 @@ jobs:
         ANSIBLE_HOST_KEY_CHECKING: "False"
       run: |
         cd ansible
-        ansible-playbook deploy.yml
+        ansible-playbook playbooks/deploy.yml
 
   # ──────────────────────────────────────────────
   # JOB 3: VERIFY

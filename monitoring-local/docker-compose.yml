@@ -12,7 +12,7 @@ services:
       - "9090:9090"
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:2.9.9
     container_name: loki-local
     restart: unless-stopped
     volumes:
@@ -22,11 +22,13 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:2.9.9
     container_name: promtail-local
+    user: "0:0"
     restart: unless-stopped
     volumes:
       - /var/log:/var/log
+      - ./logs:/app/logs
       - ./promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
 
@@ -57,7 +59,7 @@ services:
     container_name: blog-app-local
     restart: unless-stopped
     working_dir: /app
-    command: ./blog-app-bin
+    command: bash -c "mkdir -p /app/logs && ./blog-app-bin 2>&1 | tee /app/logs/blog-app.log"
     environment:
       - DB_HOST=host.containers.internal
       - DB_PORT=5432
@@ -73,7 +75,8 @@ services:
       - AWS_REGION=${AWS_REGION:-us-west-2}
       - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
     volumes:
-      - ..:/app:ro
+      - ..:/app
+      - ./logs:/app/logs
     ports:
       - "8080:8080"
     depends_on:

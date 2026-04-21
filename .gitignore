@@ -14,3 +14,4 @@
 
 # Keep: .terraform.lock.hcl (pins provider versions — should be committed)
 *.md
+monitoring-local/logs/blog-app.log
