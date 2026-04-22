@@ -34,7 +34,6 @@ services:
     user: "0:0"
     restart: unless-stopped
     volumes:
-      - /var/log:/var/log:ro
       - ./logs:/app/logs
       - ./promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml

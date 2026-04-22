@@ -9,17 +9,7 @@ clients:
   - url: http://loki-local:3100/loki/api/v1/push
 
 scrape_configs:
-  # System logs (Fedora: /var/log/messages — cần chmod 644)
-  - job_name: system
-    static_configs:
-      - targets: [localhost]
-        labels:
-          job: syslog
-          service_name: syslog
-          host: local
-          __path__: /var/log/messages
-
-  # Blog app log (stdout redirected to file)
+  # Local blog-app log — chỉ dùng khi test local, EC2 tự push qua Tailscale
   - job_name: blog-app
     static_configs:
       - targets: [localhost]

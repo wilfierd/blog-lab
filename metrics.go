@@ -48,8 +48,16 @@ var (
 )
 
 // prometheusMiddleware records HTTP metrics for every request.
+// Skips /metrics and /api/health to avoid noise in dashboards.
+// Unregistered paths (404s from bots/scanners) are tracked separately as "unmatched".
 func prometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		rawPath := c.Request.URL.Path
+		if rawPath == "/metrics" || rawPath == "/api/health" {
+			c.Next()
+			return
+		}
+
 		path := c.FullPath()
 		if path == "" {
 			path = "unmatched"
@@ -66,7 +74,7 @@ func prometheusMiddleware() gin.HandlerFunc {
 	}
 }
 
-// collectDBStats pushes DB connection pool stats to gauges.
+// collectDBStats pushes DB connection pool stats and active session count to gauges.
 // Call this in a goroutine: go collectDBStats()
 func collectDBStats() {
 	ticker := time.NewTicker(15 * time.Second)
@@ -85,5 +93,11 @@ func collectDBStats() {
 			dbWaitCount.Add(float64(stats.WaitCount - prevWait))
 		}
 		prevWait = stats.WaitCount
+
+		// Active sessions = users active in the last 30 minutes (last_access proxy)
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM users WHERE last_access > NOW() - INTERVAL '30 minutes'`).Scan(&count); err == nil {
+			activeSessions.Set(float64(count))
+		}
 	}
 }

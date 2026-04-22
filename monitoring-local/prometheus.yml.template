@@ -11,10 +11,11 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter-local:9100']
 
-  # ── AWS — Blog app qua ALB ──────────────────────────────────────────────────
+  # ── AWS — Blog app scrape trực tiếp từng EC2 qua Tailscale ─────────────────
+  # KHÔNG scrape qua ALB — ALB round-robin nhiều instance gây counter reset ảo
   - job_name: 'blog-app-ec2'
     static_configs:
-      - targets: ['${ALB_DNS}']
+      - targets: ['${EC2_1_TAILSCALE_IP}:8080']
     metrics_path: /metrics
     scheme: http
 

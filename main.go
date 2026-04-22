@@ -82,6 +82,17 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: []string{"/metrics", "/api/health"},
+		Formatter: func(param gin.LogFormatterParams) string {
+			return fmt.Sprintf(`{"time":"%s","method":"%s","path":"%s","status":%d,"latency_ms":%.3f,"client_ip":"%s","error":"%s"}`+"\n",
+				param.TimeStamp.UTC().Format("2006-01-02T15:04:05Z"),
+				param.Method,
+				param.Path,
+				param.StatusCode,
+				float64(param.Latency.Microseconds())/1000.0,
+				param.ClientIP,
+				param.ErrorMessage,
+			)
+		},
 	}))
 	r.MaxMultipartMemory = 8 << 20 // 8MB
 	r.Use(corsMiddleware())
