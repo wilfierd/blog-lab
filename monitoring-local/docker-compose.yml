@@ -11,9 +11,11 @@ services:
       - -c
       - |
         envsubst < /etc/prometheus/prometheus.yml.template > /etc/prometheus/prometheus.yml
-        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.enable-lifecycle
     volumes:
       - ./prometheus.yml.template:/etc/prometheus/prometheus.yml.template:ro
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-rules.yml:/etc/prometheus/rules/prometheus-rules.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -88,25 +90,32 @@ services:
     depends_on:
       - prometheus
 
+  alertmanager:
+    image: docker.io/prom/alertmanager:latest
+    container_name: alertmanager-local
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
   cloudwatch-exporter:
     image: prom/cloudwatch-exporter:latest
     container_name: cloudwatch-exporter-local
     restart: unless-stopped
     env_file: ../.env
-    entrypoint:
-      - sh
-      - -c
-      - |
-        envsubst < /config/config.yml.template > /config/config.yml
-        exec java -jar /cloudwatch_exporter.jar 9106 /config/config.yml
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
-      - ./cloudwatch-config.yml.template:/config/config.yml.template:ro
+      - ./cloudwatch-config.yml:/config/config.yml:ro
     ports:
       - "9106:9106"
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_DEFAULT_REGION=${AWS_REGION:-us-west-2}
+      - AWS_DEFAULT_REGION=us-west-2
 
 volumes:
   prometheus_data:

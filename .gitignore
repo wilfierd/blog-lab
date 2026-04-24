@@ -18,3 +18,4 @@ monitoring-local/logs/blog-app.log
 blog-local
 blog-app-bin
 blog-local
+monitoring-local/prometheus.yml.template

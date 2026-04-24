@@ -96,6 +96,25 @@ locals {
     systemctl enable blog.service
     systemctl start blog.service
 
+    # Install Node Exporter (RAM, Disk, system metrics)
+    curl -sLO https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-arm64.tar.gz
+    tar xzf node_exporter-1.8.2.linux-arm64.tar.gz -C /tmp
+    cp /tmp/node_exporter-1.8.2.linux-arm64/node_exporter /usr/local/bin/
+    useradd -rs /bin/false node_exporter 2>/dev/null || true
+    cat > /etc/systemd/system/node_exporter.service <<'SVCEOF'
+[Unit]
+Description=Node Exporter
+After=network.target
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter
+Restart=always
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+    systemctl daemon-reload
+    systemctl enable --now node_exporter
+
     # Install Tailscale (for monitoring agent connectivity)
     %{if var.tailscale_authkey != ""}
     curl -fsSL https://tailscale.com/install.sh | sh
@@ -141,6 +160,13 @@ resource "aws_autoscaling_group" "this" {
     version = "$Latest"
   }
 
+  enabled_metrics = [
+    "GroupInServiceInstances",
+    "GroupDesiredCapacity",
+    "GroupMinSize",
+    "GroupMaxSize",
+  ]
+
   tag {
     key                 = "Name"
     value               = "blog-app-asg-instance"
@@ -165,9 +191,9 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
   period              = 60
-  statistic           = "Average"
-  threshold           = 50
-  alarm_description   = "Scale out when CPU > 50%"
+  statistic           = "Maximum"
+  threshold           = 70
+  alarm_description   = "Scale out when any instance CPU > 70%"
   alarm_actions       = [aws_autoscaling_policy.scale_out.arn]
 
   dimensions = {
@@ -186,13 +212,13 @@ resource "aws_autoscaling_policy" "scale_in" {
 resource "aws_cloudwatch_metric_alarm" "cpu_low" {
   alarm_name          = "blog-cpu-low"
   comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 1
+  evaluation_periods  = 3
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
   period              = 60
   statistic           = "Average"
-  threshold           = 40
-  alarm_description   = "Scale in when CPU < 40%"
+  threshold           = 30
+  alarm_description   = "Scale in when average CPU < 30% for 3 consecutive minutes"
   alarm_actions       = [aws_autoscaling_policy.scale_in.arn]
 
   dimensions = {

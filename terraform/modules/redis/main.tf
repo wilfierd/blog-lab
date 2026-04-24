@@ -11,8 +11,10 @@ resource "aws_elasticache_cluster" "this" {
   parameter_group_name = "default.redis7"
   engine_version       = "7.0"
   port                 = 6379
-  subnet_group_name    = aws_elasticache_subnet_group.this.name
-  security_group_ids   = [var.db_sg_id]
+  subnet_group_name        = aws_elasticache_subnet_group.this.name
+  security_group_ids       = [var.db_sg_id]
+  snapshot_retention_limit = 3
+  snapshot_window          = "01:00-02:00"
 
   tags = { Name = "blog-redis" }
 }

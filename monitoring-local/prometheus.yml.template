@@ -2,6 +2,14 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager-local:9093']
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
@@ -15,7 +23,14 @@ scrape_configs:
   # KHÔNG scrape qua ALB — ALB round-robin nhiều instance gây counter reset ảo
   - job_name: 'blog-app-ec2'
     static_configs:
-      - targets: ['${EC2_1_TAILSCALE_IP}:8080']
+      - targets: ['${EC2_1_TAILSCALE_IP}:8080', '${EC2_2_TAILSCALE_IP}:8080']
+    metrics_path: /metrics
+    scheme: http
+
+  # ── AWS — Node Exporter trên EC2 (RAM, Disk, CPU system) ────────────────────
+  - job_name: 'ec2-node'
+    static_configs:
+      - targets: ['${EC2_1_TAILSCALE_IP}:9100', '${EC2_2_TAILSCALE_IP}:9100']
     metrics_path: /metrics
     scheme: http
 

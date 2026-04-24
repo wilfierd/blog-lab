@@ -2,6 +2,14 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager-local:9093']
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
@@ -14,7 +22,14 @@ scrape_configs:
   # ── AWS — Blog app scrape trực tiếp từng EC2 qua Tailscale ─────────────────
   - job_name: 'blog-app-ec2'
     static_configs:
-      - targets: ['100.97.11.126:8080']
+      - targets: ['100.117.199.128:8080', '100.97.93.72:8080']
+    metrics_path: /metrics
+    scheme: http
+
+  # ── AWS — Node Exporter trên EC2 (RAM, Disk, CPU system) ────────────────────
+  - job_name: 'ec2-node'
+    static_configs:
+      - targets: ['100.117.199.128:9100', '100.97.93.72:9100']
     metrics_path: /metrics
     scheme: http
 

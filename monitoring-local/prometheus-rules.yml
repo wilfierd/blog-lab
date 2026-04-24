@@ -1,0 +1,100 @@
+groups:
+  - name: backup_health
+    rules:
+      - alert: RDSLowFreeStorageSpace
+        expr: aws_rds_free_storage_space_average < 5e9
+        for: 5m
+        labels:
+          severity: warning
+          layer: backup
+        annotations:
+          summary: "RDS free storage dưới 5GB — backup sẽ gặp rủi ro"
+          description: "{{ $labels.DBInstanceIdentifier }} còn {{ $value | humanize }}B free storage."
+
+      - alert: RDSCriticalFreeStorageSpace
+        expr: aws_rds_free_storage_space_average < 2e9
+        for: 2m
+        labels:
+          severity: critical
+          layer: backup
+        annotations:
+          summary: "RDS free storage < 2GB — backup có thể thất bại"
+          description: "{{ $labels.DBInstanceIdentifier }} chỉ còn {{ $value | humanize }}B. Cần mở rộng storage ngay."
+
+  - name: database_health
+    rules:
+      - alert: RDSHighCPU
+        expr: aws_rds_cpu_utilization_average > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RDS CPU > 80%"
+          description: "{{ $labels.DBInstanceIdentifier }} CPU đang ở {{ $value | humanizePercentage }}."
+
+      - alert: RDSTooManyConnections
+        expr: aws_rds_database_connections_average > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RDS connections > 80 — gần giới hạn db.t3.micro (max ~85)"
+          description: "{{ $labels.DBInstanceIdentifier }} đang có {{ $value }} connections."
+
+      - alert: RDSDeadlocks
+        expr: increase(aws_rds_deadlocks_sum[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Phát hiện deadlock trên RDS"
+          description: "{{ $labels.DBInstanceIdentifier }} có {{ $value }} deadlock(s) trong 5 phút vừa rồi."
+
+  - name: redis_health
+    rules:
+      # cache.t3.micro có ~640MB, cảnh báo ở 75%
+      - alert: RedisHighMemory
+        expr: aws_elasticache_bytes_used_for_cache_average > 480e6
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis dùng > 75% memory"
+          description: "{{ $labels.CacheClusterId }} đang dùng {{ $value | humanize }}B (ngưỡng 480MB / ~640MB total)."
+
+      - alert: RedisHighEvictions
+        expr: rate(aws_elasticache_evictions_sum[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis evictions cao — cache bị xóa do thiếu bộ nhớ"
+          description: "{{ $labels.CacheClusterId }} đang evict {{ $value | humanize }} keys/s."
+
+  - name: app_health
+    rules:
+      - alert: ALBNoHealthyHosts
+        expr: aws_applicationelb_healthy_host_count_average < 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ALB không có healthy target — ứng dụng down"
+          description: "HealthyHostCount = {{ $value }}. Kiểm tra EC2 instances và health check /api/health."
+
+      - alert: ALBHighErrorRate
+        expr: rate(aws_applicationelb_httpcode_target_5xx_count_sum[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ALB 5xx errors > 5 req/min"
+          description: "5xx rate hiện tại: {{ $value | humanize }} req/s."
+
+      - alert: EC2StatusCheckFailed
+        expr: aws_ec2_status_check_failed_sum > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "EC2 status check thất bại"
+          description: "{{ $labels.AutoScalingGroupName }} có instance bị status check failed."

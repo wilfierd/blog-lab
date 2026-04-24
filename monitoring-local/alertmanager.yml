@@ -1,0 +1,55 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'hieulun76a@gmail.com'
+  smtp_auth_username: 'hieulun76a@gmail.com'
+  smtp_auth_password: 'rsppuufzwvdjcxjr'  # Gmail App Password 16 ký tự (không có space)
+  smtp_auth_identity: 'hieulun76a@gmail.com'  # force PLAIN auth thay vì LOGIN
+  smtp_require_tls: true
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'email-default'
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: 'email-critical'
+      repeat_interval: 1h
+
+receivers:
+  - name: 'email-default'
+    email_configs:
+      - to: 'vexbravor@gmail.com'  # nhận alert tại đây
+        headers:
+          Subject: '[WARNING] {{ .GroupLabels.alertname }}'
+        html: |
+          {{ range .Alerts }}
+          <b>Alert:</b> {{ .Annotations.summary }}<br>
+          {{ .Annotations.description }}<br>
+          <b>Severity:</b> {{ .Labels.severity }}<br>
+          <b>Fired at:</b> {{ .StartsAt }}<br><br>
+          {{ end }}
+        send_resolved: true
+
+  - name: 'email-critical'
+    email_configs:
+      - to: 'vexbravor@gmail.com'  # nhận alert tại đây
+        headers:
+          Subject: '[CRITICAL] {{ .GroupLabels.alertname }} - ACTION REQUIRED'
+        html: |
+          {{ range .Alerts }}
+          <b>🚨 CRITICAL ALERT</b><br>
+          <b>Alert:</b> {{ .Annotations.summary }}<br>
+          {{ .Annotations.description }}<br>
+          <b>Severity:</b> {{ .Labels.severity }}<br>
+          <b>Fired at:</b> {{ .StartsAt }}<br><br>
+          {{ end }}
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning"]
+    equal: ['alertname']

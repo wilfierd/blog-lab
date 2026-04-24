@@ -250,84 +250,12 @@
       }
     },
 
-    { "id": 50, "title": "HTTP Access Log — từng request", "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 37 },
-      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-      "description": "Từng HTTP request từ client: method, path, status, latency, IP. Đọc từ Loki log (EC2 app).",
-      "targets": [{
-        "expr": "{service_name=\"blog-app\"} | json | method != \"\"",
-        "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-        "queryType": "range",
-        "legendFormat": ""
-      }],
-      "transformations": [
-        { "id": "organize", "options": {
-          "excludeByName": {
-            "id": true, "tsNs": true, "traceId": true, "spanId": true,
-            "error": true, "filename": true, "host": true, "job": true,
-            "service_name": true, "Line": true
-          },
-          "renameByName": {
-            "Time": "Time",
-            "method": "Method",
-            "path": "Path",
-            "status": "Status",
-            "latency_ms": "Latency (ms)",
-            "client_ip": "Client IP"
-          },
-          "indexByName": {
-            "Time": 0, "method": 1, "path": 2, "status": 3, "latency_ms": 4, "client_ip": 5
-          }
-        }}
-      ],
-      "options": {
-        "sortBy": [{ "displayName": "Time", "desc": true }],
-        "footer": { "show": false }
-      },
-      "fieldConfig": {
-        "defaults": { "custom": { "align": "left" } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "Status" },
-            "properties": [
-              { "id": "custom.width", "value": 70 },
-              { "id": "custom.displayMode", "value": "color-text" },
-              { "id": "color", "value": { "mode": "thresholds" } },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
-                {"color":"green","value":null},{"color":"orange","value":400},{"color":"red","value":500}
-              ]}}
-            ]
-          },
-          { "matcher": { "id": "byName", "options": "Latency (ms)" },
-            "properties": [
-              { "id": "custom.width", "value": 110 },
-              { "id": "custom.displayMode", "value": "color-background-solid" },
-              { "id": "color", "value": { "mode": "thresholds" } },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
-                {"color":"green","value":null},{"color":"yellow","value":200},{"color":"red","value":1000}
-              ]}},
-              { "id": "unit", "value": "ms" },
-              { "id": "decimals", "value": 1 }
-            ]
-          },
-          { "matcher": { "id": "byName", "options": "Method" },
-            "properties": [{ "id": "custom.width", "value": 70 }]
-          },
-          { "matcher": { "id": "byName", "options": "Client IP" },
-            "properties": [{ "id": "custom.width", "value": 130 }]
-          },
-          { "matcher": { "id": "byName", "options": "Time" },
-            "properties": [{ "id": "custom.width", "value": 160 }]
-          }
-        ]
-      }
-    },
-
     { "id": 25, "title": "Go Runtime", "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 }, "collapsed": false
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 }, "collapsed": false
     },
 
     { "id": 26, "title": "Heap Memory", "type": "gauge",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 48 },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [{ "expr": "go_memstats_alloc_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap MB" }],
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
@@ -337,7 +265,7 @@
     },
 
     { "id": 27, "title": "Sys / Stack Memory", "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 48 },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "expr": "go_memstats_sys_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "sys MB" },
@@ -348,7 +276,7 @@
     },
 
     { "id": 28, "title": "Goroutines", "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 48 },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [{ "expr": "go_goroutines{job='blog-app-ec2'}", "legendFormat": "goroutines" }],
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
@@ -358,7 +286,7 @@
     },
 
     { "id": 29, "title": "GC Pause", "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 48 },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "description": "Garbage Collector: avg ms mỗi lần GC chạy, và tần suất GC/phút",
       "targets": [
@@ -372,7 +300,7 @@
     },
 
     { "id": 31, "title": "File Descriptors", "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 48 },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "expr": "process_open_fds{job='blog-app-ec2'}", "legendFormat": "open" },
@@ -383,7 +311,7 @@
     },
 
     { "id": 32, "title": "Process Uptime", "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 48 },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 38 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [{ "expr": "time() - process_start_time_seconds{job='blog-app-ec2'}", "legendFormat": "uptime" }],
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
@@ -391,7 +319,7 @@
     },
 
     { "id": 33, "title": "Memory theo thời gian", "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 52 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 42 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "expr": "go_memstats_alloc_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap alloc MB" },
@@ -403,7 +331,7 @@
     },
 
     { "id": 34, "title": "Goroutines & GC theo thời gian", "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 52 },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 42 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "expr": "go_goroutines{job='blog-app-ec2'}", "legendFormat": "goroutines" },

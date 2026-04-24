@@ -15,8 +15,13 @@ resource "aws_db_instance" "postgres" {
   password               = var.db_password
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [var.db_sg_id]
-  publicly_accessible    = false
-  skip_final_snapshot    = true
+  publicly_accessible       = false
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "blog-postgres-final"
+  backup_retention_period   = 7
+  backup_window             = "02:00-03:00"
+  copy_tags_to_snapshot     = true
+  deletion_protection       = false
 
   tags = { Name = "blog-postgres" }
 }
