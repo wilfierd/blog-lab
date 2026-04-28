@@ -1,0 +1,345 @@
+{
+  "uid": "blog-app-v3",
+  "title": "Blog App — Traffic & Performance",
+  "tags": ["blog"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      { "name": "datasource", "type": "datasource", "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "Prometheus" }, "hide": 2 }
+    ]
+  },
+  "panels": [
+
+    { "id": 1, "title": "Real Req / min", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health|unmatched'}[5m])) * 60", "legendFormat": "req/min" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 1, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"blue","value":null},{"color":"green","value":1}] }
+      }}
+    },
+
+    { "id": 2, "title": "5xx Error Rate", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "100 * (sum(rate(blog_http_requests_total{job='blog-app-ec2', status=~'5..', path!~'/metrics|/api/health|unmatched'}[5m])) or vector(0)) / (sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health|unmatched'}[5m])) + 0.0001)", "legendFormat": "5xx %" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":1},{"color":"red","value":5}] }
+      }}
+    },
+
+    { "id": 3, "title": "P95 Latency", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "95% request được xử lý nhanh hơn con số này",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2', path!~'/api/health|unmatched'}[5m])) by (le)) * 1000", "legendFormat": "p95 ms" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 0, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":200},{"color":"red","value":500}] }
+      }}
+    },
+
+    { "id": 4, "title": "Active Sessions", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "blog_active_sessions{job='blog-app-ec2'}", "legendFormat": "sessions" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"blue","value":null}] }
+      }}
+    },
+
+    { "id": 5, "title": "DB Connections", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "blog_db_open_connections{job='blog-app-ec2'}", "legendFormat": "open" },
+        { "expr": "blog_db_in_use_connections{job='blog-app-ec2'}", "legendFormat": "in use" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":15},{"color":"red","value":25}] }
+      }}
+    },
+
+    { "id": 6, "title": "ALB Healthy Hosts", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "aws_applicationelb_healthy_host_count_average", "legendFormat": "healthy" },
+        { "expr": "aws_applicationelb_un_healthy_host_count_average", "legendFormat": "unhealthy" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] }
+      },
+        "overrides": [{ "matcher": { "id": "byName", "options": "unhealthy" },
+          "properties": [{ "id": "thresholds", "value": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"red","value":1}] }}]
+        }]
+      }
+    },
+
+    { "id": 9, "title": "Tổng Request theo Endpoint (trong time range)", "type": "table",
+      "gridPos": { "h": 10, "w": 8, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Sort theo tổng số request giảm dần. Dùng để biết endpoint nào được gọi nhiều nhất.",
+      "targets": [{
+        "expr": "sort_desc(sum(increase(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health|unmatched'}[$__range])) by (method, path, status))",
+        "legendFormat": "", "instant": true, "format": "table"
+      }],
+      "transformations": [
+        { "id": "organize", "options": {
+          "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true },
+          "renameByName": { "method": "Method", "path": "Endpoint", "status": "Status", "Value": "Total" },
+          "indexByName": { "method": 0, "path": 1, "status": 2, "Value": 3 }
+        }}
+      ],
+      "options": {
+        "sortBy": [{ "displayName": "Total", "desc": true }],
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Total" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "custom.width", "value": 110 },
+              { "id": "color", "value": { "mode": "continuous-BlPu" } },
+              { "id": "decimals", "value": 0 }
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.width", "value": 65 },
+              { "id": "custom.displayMode", "value": "color-text" },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                {"color":"green","value":null},{"color":"orange","value":400},{"color":"red","value":500}
+              ]}}
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "Method" },
+            "properties": [{ "id": "custom.width", "value": 65 }]
+          }
+        ]
+      }
+    },
+
+    { "id": 10, "title": "Lưu lượng API theo Endpoint (req/min)", "type": "timeseries",
+      "gridPos": { "h": 10, "w": 16, "x": 8, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{
+        "expr": "topk(10, sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health|unmatched'}[5m])) by (path, method)) * 60",
+        "legendFormat": "{{method}} {{path}}"
+      }],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max", "sum"] }
+      },
+      "fieldConfig": { "defaults": { "unit": "short",
+        "custom": { "lineWidth": 2, "fillOpacity": 8, "spanNulls": false, "showPoints": "never" }
+      }}
+    },
+
+    { "id": 11, "title": "Status Code theo thời gian (stacked)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Stacked: xanh = 2xx thành công, cam = 4xx lỗi client, đỏ = 5xx lỗi server",
+      "targets": [{
+        "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', path!~'/metrics|/api/health|unmatched'}[5m])) by (status) * 60",
+        "legendFormat": "HTTP {{status}}"
+      }],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": { "defaults": { "unit": "short",
+        "custom": { "lineWidth": 2, "fillOpacity": 15, "stacking": { "mode": "normal", "group": "A" }, "showPoints": "never" }
+      },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": "^HTTP 2" }, "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": "^HTTP 4" }, "properties": [{ "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": "^HTTP 5" }, "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    { "id": 12, "title": "Bot / Scanner 404 (req/min)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Request đến path không tồn tại — thường là bot quét lỗ hổng, sai URL. Không phải lỗi app.",
+      "targets": [{
+        "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', path='unmatched'}[5m])) by (method, status) * 60",
+        "legendFormat": "{{method}} → {{status}}"
+      }],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }
+      },
+      "fieldConfig": { "defaults": { "unit": "short",
+        "color": { "mode": "fixed", "fixedColor": "#A352CC" },
+        "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }
+      }}
+    },
+
+    { "id": 20, "title": "Tốc độ xử lý API — avg / p50 / p95 / p99 (ms)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "p95 = 95% request nhanh hơn con số này. p99 = chỉ 1% chậm hơn. avg thấp nhưng p99 cao = có spike ẩn.",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2', path!~'/api/health|unmatched'}[5m])) by (le)) * 1000", "legendFormat": "p50 (median)" },
+        { "expr": "histogram_quantile(0.95, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2', path!~'/api/health|unmatched'}[5m])) by (le)) * 1000", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(blog_http_request_duration_seconds_bucket{job='blog-app-ec2', path!~'/api/health|unmatched'}[5m])) by (le)) * 1000", "legendFormat": "p99" },
+        { "expr": "sum(rate(blog_http_request_duration_seconds_sum{job='blog-app-ec2', path!~'/api/health|unmatched'}[5m])) / sum(rate(blog_http_request_duration_seconds_count{job='blog-app-ec2', path!~'/api/health|unmatched'}[5m])) * 1000", "legendFormat": "avg" }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max", "mean"] }
+      },
+      "fieldConfig": { "defaults": { "unit": "ms",
+        "custom": { "lineWidth": 2, "fillOpacity": 6, "gradientMode": "opacity", "spanNulls": true, "showPoints": "never" }
+      },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "p99" },
+            "properties": [{ "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }]
+          }
+        ]
+      }
+    },
+
+    { "id": 21, "title": "DB Connection Pool", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "open = tổng connection đang giữ, in use = đang thực thi query",
+      "targets": [
+        { "expr": "blog_db_open_connections{job='blog-app-ec2'}", "legendFormat": "open" },
+        { "expr": "blog_db_in_use_connections{job='blog-app-ec2'}", "legendFormat": "in use" }
+      ],
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": { "unit": "short",
+        "custom": { "lineWidth": 2, "fillOpacity": 20, "showPoints": "never" }
+      }}
+    },
+
+    { "id": 40, "title": "Lỗi 4xx / 5xx theo Endpoint", "type": "timeseries",
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "4xx = lỗi do client (sai param, auth fail). 5xx = lỗi server (crash, timeout DB). Không có data = tốt.",
+      "targets": [{
+        "expr": "sum(rate(blog_http_requests_total{job='blog-app-ec2', status=~'[45]..', path!~'/metrics|/api/health|unmatched'}[5m])) by (path, method, status) * 60",
+        "legendFormat": "{{method}} {{path}} → {{status}}"
+      }],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "sum"] }
+      },
+      "fieldConfig": { "defaults": { "unit": "short",
+        "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "auto", "pointSize": 5 }
+      },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": "→ 4" }, "properties": [{ "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": "→ 5" }, "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    { "id": 25, "title": "Go Runtime", "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 }, "collapsed": false
+    },
+
+    { "id": 26, "title": "Heap Memory", "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "go_memstats_alloc_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap MB" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "min": 0, "max": 512, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":200},{"color":"red","value":400}] }
+      }}
+    },
+
+    { "id": 27, "title": "Sys / Stack Memory", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "go_memstats_sys_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "sys MB" },
+        { "expr": "go_memstats_stack_inuse_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "stack MB" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "blue" } }}
+    },
+
+    { "id": 28, "title": "Goroutines", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "go_goroutines{job='blog-app-ec2'}", "legendFormat": "goroutines" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":500},{"color":"red","value":1000}] }
+      }}
+    },
+
+    { "id": 29, "title": "GC Pause", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Garbage Collector: avg ms mỗi lần GC chạy, và tần suất GC/phút",
+      "targets": [
+        { "expr": "rate(go_gc_duration_seconds_sum{job='blog-app-ec2'}[5m]) / rate(go_gc_duration_seconds_count{job='blog-app-ec2'}[5m]) * 1000", "legendFormat": "avg ms" },
+        { "expr": "rate(go_gc_duration_seconds_count{job='blog-app-ec2'}[5m]) * 60", "legendFormat": "gc/min" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 2, "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":5},{"color":"red","value":20}] }
+      }}
+    },
+
+    { "id": 31, "title": "File Descriptors", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "process_open_fds{job='blog-app-ec2'}", "legendFormat": "open" },
+        { "expr": "process_max_fds{job='blog-app-ec2'}", "legendFormat": "limit" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "orientation": "vertical", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "blue" } }}
+    },
+
+    { "id": 32, "title": "Process Uptime", "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 38 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "time() - process_start_time_seconds{job='blog-app-ec2'}", "legendFormat": "uptime" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "fixed", "fixedColor": "green" } }}
+    },
+
+    { "id": 33, "title": "Memory theo thời gian", "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 42 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "go_memstats_alloc_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap alloc MB" },
+        { "expr": "go_memstats_heap_idle_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "heap idle MB" },
+        { "expr": "go_memstats_sys_bytes{job='blog-app-ec2'} / 1048576", "legendFormat": "sys MB" }
+      ],
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull","max"] } },
+      "fieldConfig": { "defaults": { "unit": "decmbytes", "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "spanNulls": true } }}
+    },
+
+    { "id": 34, "title": "Goroutines & GC theo thời gian", "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 42 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "go_goroutines{job='blog-app-ec2'}", "legendFormat": "goroutines" },
+        { "expr": "rate(go_gc_duration_seconds_count{job='blog-app-ec2'}[5m]) * 60", "legendFormat": "gc/min" }
+      ],
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "spanNulls": true } }}
+    }
+
+  ]
+}

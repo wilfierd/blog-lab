@@ -4,7 +4,6 @@
 #
 # Prerequisites:
 #   - Monitoring EC2 must be running (provisioned by Terraform)
-#   - monitoring-ec2/.env must be populated (or pass GRAFANA_PASSWORD + AWS_REGION)
 #
 # Usage:
 #   ansible-playbook playbooks/deploy_monitoring_stack.yml \
@@ -23,21 +22,25 @@
         sleep: 10
 
   tasks:
-    - name: Ensure monitoring directory exists
+    - name: Ensure monitoring directories exist
       file:
-        path: /opt/monitoring
-        state: directory
-        owner: ec2-user
-        group: ec2-user
-        mode: "0750"
-
-    - name: Ensure Grafana provisioning directory exists
-      file:
-        path: /opt/monitoring/grafana/provisioning/datasources
+        path: "{{ item }}"
         state: directory
         owner: ec2-user
         group: ec2-user
         mode: "0755"
+      loop:
+        - /opt/monitoring
+        - /opt/monitoring/grafana/provisioning/datasources
+        - /opt/monitoring/grafana/provisioning/dashboards
+
+    - name: Generate prometheus.yml from template (region substituted by Ansible)
+      template:
+        src: "../../monitoring-ec2/prometheus.yml.j2"
+        dest: /opt/monitoring/prometheus.yml
+        owner: ec2-user
+        group: ec2-user
+        mode: "0644"
 
     - name: Copy monitoring config files
       copy:
@@ -48,12 +51,17 @@
         mode: "0644"
       loop:
         - { src: "../../monitoring-ec2/docker-compose.yml",                                          dest: "/opt/monitoring/docker-compose.yml" }
-        - { src: "../../monitoring-ec2/prometheus.yml.template",                                     dest: "/opt/monitoring/prometheus.yml.template" }
         - { src: "../../monitoring-ec2/prometheus-rules.yml",                                        dest: "/opt/monitoring/prometheus-rules.yml" }
         - { src: "../../monitoring-ec2/alertmanager.yml",                                            dest: "/opt/monitoring/alertmanager.yml" }
         - { src: "../../monitoring-ec2/loki-config.yml",                                             dest: "/opt/monitoring/loki-config.yml" }
         - { src: "../../monitoring-ec2/cloudwatch-config.yml",                                       dest: "/opt/monitoring/cloudwatch-config.yml" }
         - { src: "../../monitoring-ec2/grafana/provisioning/datasources/datasources.yml",            dest: "/opt/monitoring/grafana/provisioning/datasources/datasources.yml" }
+        - { src: "../../monitoring-ec2/grafana/provisioning/dashboards/dashboards.yml",              dest: "/opt/monitoring/grafana/provisioning/dashboards/dashboards.yml" }
+        - { src: "../../monitoring-ec2/grafana/provisioning/dashboards/aws-rds.json",                dest: "/opt/monitoring/grafana/provisioning/dashboards/aws-rds.json" }
+        - { src: "../../monitoring-ec2/grafana/provisioning/dashboards/aws-redis.json",              dest: "/opt/monitoring/grafana/provisioning/dashboards/aws-redis.json" }
+        - { src: "../../monitoring-ec2/grafana/provisioning/dashboards/aws-ec2-alb.json",            dest: "/opt/monitoring/grafana/provisioning/dashboards/aws-ec2-alb.json" }
+        - { src: "../../monitoring-ec2/grafana/provisioning/dashboards/aws-infra.json",              dest: "/opt/monitoring/grafana/provisioning/dashboards/aws-infra.json" }
+        - { src: "../../monitoring-ec2/grafana/provisioning/dashboards/blog-app.json",               dest: "/opt/monitoring/grafana/provisioning/dashboards/blog-app.json" }
 
     - name: Write .env file for docker-compose
       copy:
@@ -62,7 +70,6 @@
         group: ec2-user
         mode: "0600"
         content: |
-          AWS_REGION={{ aws_region | default('us-west-2') }}
           GRAFANA_PASSWORD={{ grafana_password }}
 
     - name: Pull latest images
