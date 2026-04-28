@@ -80,7 +80,7 @@ resource "aws_security_group" "db" {
 
 resource "aws_security_group" "monitoring" {
   name        = "blog-monitoring-sg"
-  description = "Monitoring EC2 — Grafana public, Loki/Prometheus VPC-only"
+  description = "Monitoring EC2 - Grafana public, Loki/Prometheus VPC-only"
   vpc_id      = var.vpc_id
 
   # Grafana: public access, Grafana handles its own auth
@@ -97,7 +97,7 @@ resource "aws_security_group" "monitoring" {
 
   # Prometheus and Alertmanager: VPC-internal only
   ingress {
-    description = "Prometheus UI — VPC internal"
+    description = "Prometheus UI - VPC internal"
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
@@ -105,7 +105,7 @@ resource "aws_security_group" "monitoring" {
   }
 
   ingress {
-    description = "Alertmanager — VPC internal"
+    description = "Alertmanager - VPC internal"
     from_port   = 9093
     to_port     = 9093
     protocol    = "tcp"

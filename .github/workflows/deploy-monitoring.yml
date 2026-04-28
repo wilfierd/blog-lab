@@ -36,9 +36,11 @@ jobs:
       env:
         ANSIBLE_HOST_KEY_CHECKING: "False"
       run: |
+        BUCKET=$(echo "${{ secrets.AWS_BUCKET_NAME }}" | tr -d '[:space:]')
         REGION=$(echo "${{ secrets.AWS_REGION }}" | tr -d '[:space:]')
         cd ansible
         ansible-playbook playbooks/deploy_monitoring_stack.yml \
+          -e "bucket=${BUCKET}" \
           -e "aws_region=${REGION}" \
           -e "grafana_password=${{ secrets.GRAFANA_PASSWORD }}"
 
@@ -73,12 +75,18 @@ jobs:
                     "Name=instance-state-name,Values=running" \
           --query 'Reservations[0].Instances[0].PrivateIpAddress' \
           --output text --region "${{ secrets.AWS_REGION }}")
+        if [ "$PRIVATE_IP" = "None" ] || [ -z "$PRIVATE_IP" ]; then
+          echo "::error::Monitoring EC2 not found! Run terraform apply first."
+          exit 1
+        fi
         echo "private_ip=${PRIVATE_IP}" >> $GITHUB_OUTPUT
 
     - name: Deploy monitoring agents
       env:
         ANSIBLE_HOST_KEY_CHECKING: "False"
       run: |
+        BUCKET=$(echo "${{ secrets.AWS_BUCKET_NAME }}" | tr -d '[:space:]')
         cd ansible
         ansible-playbook playbooks/deploy_monitoring_agent.yml \
+          -e "bucket=${BUCKET}" \
           -e "loki_push_ip=${{ steps.monitoring.outputs.private_ip }}"
