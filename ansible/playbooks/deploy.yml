@@ -2,7 +2,7 @@
 - name: Deploy Blog App — Rolling Update (SSM, zero-downtime)
   hosts: tag_Name_blog_app_asg_instance
   serial: 1
-  max_fail_percentage: 0
+  max_fail_percentage: 49  # cho phép fail tối đa ~1 instance, miễn còn >50% healthy
   gather_facts: no
 
   pre_tasks:

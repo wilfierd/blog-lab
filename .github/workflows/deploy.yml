@@ -95,3 +95,19 @@ jobs:
           -e "bucket=${BUCKET}" \
           -e "region=${REGION}" \
           -e "binary_version=${{ needs.build.outputs.short_sha }}"
+
+    - name: Smoke test via ALB
+      run: |
+        ALB_DNS=$(aws elbv2 describe-load-balancers \
+          --names blog-alb \
+          --query 'LoadBalancers[0].DNSName' \
+          --output text)
+        for i in {1..5}; do
+          if curl -sf "http://${ALB_DNS}/api/health" > /dev/null; then
+            echo "✅ ALB smoke test passed (attempt $i)"
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "❌ ALB smoke test failed — instances healthy per Ansible but ALB not routing"
+        exit 1
