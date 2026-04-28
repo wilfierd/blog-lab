@@ -23,7 +23,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "app" {
   name        = "blog-app-sg"
-  description = "Allow traffic from ALB to app instances"
+  description = "Allow traffic from ALB and metrics scraping from monitoring"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -33,6 +33,9 @@ resource "aws_security_group" "app" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
+
+  # NOTE: monitoring → app cross-refs are in aws_security_group_rule below
+  # to avoid cyclic dependency with monitoring_sg
 
   egress {
     from_port   = 0
@@ -73,4 +76,81 @@ resource "aws_security_group" "db" {
   }
 
   tags = { Name = "blog-db-sg" }
+}
+
+resource "aws_security_group" "monitoring" {
+  name        = "blog-monitoring-sg"
+  description = "Monitoring EC2 — Grafana public, Loki/Prometheus VPC-only"
+  vpc_id      = var.vpc_id
+
+  # Grafana: public access, Grafana handles its own auth
+  ingress {
+    description = "Grafana UI from internet"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # NOTE: Loki push from app_sg is in aws_security_group_rule below
+  # to avoid cyclic dependency with app_sg
+
+  # Prometheus and Alertmanager: VPC-internal only
+  ingress {
+    description = "Prometheus UI — VPC internal"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Alertmanager — VPC internal"
+    from_port   = 9093
+    to_port     = 9093
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "blog-monitoring-sg" }
+}
+
+# ─── Cross-reference rules (separate to break cyclic dependency) ─────────────
+# Both SGs are created first, then these rules are added after.
+
+resource "aws_security_group_rule" "app_allow_prometheus_scrape" {
+  description              = "Prometheus scrape blog metrics from monitoring"
+  type                     = "ingress"
+  from_port                = 8080
+  to_port                  = 8080
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.app.id
+  source_security_group_id = aws_security_group.monitoring.id
+}
+
+resource "aws_security_group_rule" "app_allow_node_exporter_scrape" {
+  description              = "Node Exporter scrape from monitoring"
+  type                     = "ingress"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.app.id
+  source_security_group_id = aws_security_group.monitoring.id
+}
+
+resource "aws_security_group_rule" "monitoring_allow_loki_push" {
+  description              = "Loki push from app EC2 (Promtail)"
+  type                     = "ingress"
+  from_port                = 3100
+  to_port                  = 3100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.monitoring.id
+  source_security_group_id = aws_security_group.app.id
 }

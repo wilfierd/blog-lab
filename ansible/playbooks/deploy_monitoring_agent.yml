@@ -15,5 +15,4 @@
 
   # Usage:
   # ansible-playbook playbooks/deploy_monitoring_agent.yml \
-  #   -e tailscale_authkey=tskey-auth-xxxx \
-  #   -e loki_local_tailscale_ip=100.x.x.x
+  #   -e loki_push_ip=$(terraform -chdir=../terraform/environments/dev output -raw monitoring_private_ip)

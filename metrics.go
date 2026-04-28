@@ -45,6 +45,11 @@ var (
 		Name: "blog_active_sessions",
 		Help: "Estimated active user sessions (Redis keys)",
 	})
+
+	authEventsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "blog_auth_events_total",
+		Help: "Total authentication events by type and method",
+	}, []string{"event", "method"})
 )
 
 // prometheusMiddleware records HTTP metrics for every request.

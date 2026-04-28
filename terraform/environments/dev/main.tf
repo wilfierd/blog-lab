@@ -7,8 +7,9 @@ module "vpc" {
 }
 
 module "security_groups" {
-  source = "../../modules/security_groups"
-  vpc_id = module.vpc.vpc_id
+  source   = "../../modules/security_groups"
+  vpc_id   = module.vpc.vpc_id
+  vpc_cidr = var.vpc_cidr
 }
 
 module "s3" {
@@ -69,5 +70,11 @@ module "ec2" {
   s3_bucket_arn      = module.s3.bucket_arn
   secret_arn         = module.secrets.arn
   aws_region         = var.aws_region
-  tailscale_authkey  = var.tailscale_authkey
+}
+
+module "monitoring" {
+  source           = "../../modules/monitoring"
+  public_subnet_id = module.vpc.public_subnet_ids[0]
+  monitoring_sg_id = module.security_groups.monitoring_sg_id
+  aws_region       = var.aws_region
 }

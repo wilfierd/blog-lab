@@ -52,9 +52,9 @@ variable "google_redirect_url" {
   default     = "https://blog.wilfierd.engineer/auth/google/callback"
 }
 
-variable "tailscale_authkey" {
-  description = "Tailscale auth key for EC2 instances"
+variable "grafana_password" {
+  description = "Grafana admin password for the monitoring EC2"
   type        = string
   sensitive   = true
-  default     = ""
+  default     = "changeme"
 }

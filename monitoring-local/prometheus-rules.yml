@@ -70,6 +70,37 @@ groups:
           summary: "Redis evictions cao — cache bị xóa do thiếu bộ nhớ"
           description: "{{ $labels.CacheClusterId }} đang evict {{ $value | humanize }} keys/s."
 
+  - name: auth_security
+    rules:
+      # Brute force: >20 login failures in 5 minutes on any single instance
+      - alert: BruteForceLoginDetected
+        expr: increase(blog_auth_events_total{event="login_fail",method="password"}[5m]) > 20
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Brute force login attack detected"
+          description: "Instance {{ $labels.instance }} có {{ $value }} login failures trong 5 phút."
+
+      # DB connection pool exhaustion
+      - alert: DBConnectionPoolHigh
+        expr: blog_db_in_use_connections / blog_db_open_connections > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DB connection pool > 85% utilized"
+          description: "In-use: {{ $value | humanizePercentage }} of open connections. Risk of connection starvation."
+
+      - alert: DBConnectionPoolWaitHigh
+        expr: rate(blog_db_wait_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "App waiting for DB connections"
+          description: "DB wait rate: {{ $value | humanize }} waits/s. Pool may be undersized."
+
   - name: app_health
     rules:
       - alert: ALBNoHealthyHosts

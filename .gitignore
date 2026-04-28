@@ -19,3 +19,4 @@ blog-local
 blog-app-bin
 blog-local
 monitoring-local/prometheus.yml.template
+monitoring-ec2/alertmanager.yml

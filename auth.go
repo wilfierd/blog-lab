@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -32,21 +32,25 @@ func handleLogin(c *gin.Context) {
 		return
 	}
 	var userID int
-	var name, avatar, password, role sql.NullString
+	var name, avatar, hash, role sql.NullString
 	err := db.QueryRow(`SELECT id, name, avatar, password_hash, role FROM users WHERE username = $1`, body.Username).
-		Scan(&userID, &name, &avatar, &password, &role)
+		Scan(&userID, &name, &avatar, &hash, &role)
 	if err != nil {
-		log.Printf("Login error for %s: %v", body.Username, err)
+		slog.Warn("login failed", "username", body.Username, "reason", "user_not_found", "ip", c.ClientIP())
+		authEventsTotal.WithLabelValues("login_fail", "password").Inc()
 		c.JSON(401, gin.H{"error": "invalid username or password"})
 		return
 	}
-	if password.String != body.Password {
-		log.Printf("Password mismatch for %s", body.Username)
+	if err := bcrypt.CompareHashAndPassword([]byte(hash.String), []byte(body.Password)); err != nil {
+		slog.Warn("login failed", "username", body.Username, "reason", "bad_password", "ip", c.ClientIP())
+		authEventsTotal.WithLabelValues("login_fail", "password").Inc()
 		c.JSON(401, gin.H{"error": "invalid username or password"})
 		return
 	}
 	setSession(c, userID, name.String, avatar.String, role.String)
 	updateLastAccess(userID)
+	slog.Info("login success", "username", body.Username, "user_id", userID, "ip", c.ClientIP())
+	authEventsTotal.WithLabelValues("login_success", "password").Inc()
 	c.JSON(200, gin.H{"role": role, "name": name})
 }
 
@@ -61,6 +65,7 @@ func handleDevLogin(c *gin.Context) {
 	}
 	setSession(c, userID, name, avatar, role)
 	updateLastAccess(userID)
+	authEventsTotal.WithLabelValues("login_success", "dev").Inc()
 	c.Redirect(http.StatusTemporaryRedirect, "/frontend/blog.html")
 }
 
@@ -107,6 +112,8 @@ func handleGoogleCallback(c *gin.Context) {
 	}
 	setSession(c, userID, info.Name, info.Picture, role)
 	updateLastAccess(userID)
+	slog.Info("google login", "email", info.Email, "user_id", userID, "ip", c.ClientIP())
+	authEventsTotal.WithLabelValues("login_success", "google").Inc()
 	c.Redirect(http.StatusTemporaryRedirect, "/frontend/blog.html")
 }
 
@@ -114,6 +121,7 @@ func handleLogout(c *gin.Context) {
 	sess, _ := store.Get(c.Request, "session")
 	sess.Options.MaxAge = -1
 	sess.Save(c.Request, c.Writer)
+	authEventsTotal.WithLabelValues("logout", "session").Inc()
 	c.Redirect(http.StatusTemporaryRedirect, "/frontend/index.html")
 }
 
@@ -173,7 +181,6 @@ func updateMyProfile(c *gin.Context) {
 			avatar = CASE WHEN $2 != '' THEN $2 ELSE avatar END
 			WHERE id = $3`, body.Name, body.Avatar, userID)
 	}
-	// Refresh session with new name/avatar
 	if body.Name != "" {
 		sess.Values["name"] = body.Name
 	}

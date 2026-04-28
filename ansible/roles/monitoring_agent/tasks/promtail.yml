@@ -34,7 +34,7 @@
         filename: /tmp/promtail-positions.yaml
 
       clients:
-        - url: http://{{ loki_local_tailscale_ip }}:{{ loki_port }}/loki/api/v1/push
+        - url: http://{{ loki_push_ip }}:{{ loki_port }}/loki/api/v1/push
 
       scrape_configs:
         # blog.service logs via journald (StandardOutput=journal)

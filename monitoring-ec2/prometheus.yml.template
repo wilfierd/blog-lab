@@ -1,0 +1,68 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ── Monitoring EC2 self — node exporter ───────────────────────────────────
+  - job_name: 'monitoring-node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # ── Blog App EC2 — tag-based discovery (no static IPs, ASG-safe) ──────────
+  # Discovers running instances with tag Name=blog-app-asg-instance via EC2 API
+  - job_name: 'blog-app-ec2'
+    ec2_sd_configs:
+      - region: ${AWS_REGION}
+        port: 8080
+        filters:
+          - name: tag:Name
+            values: ['blog-app-asg-instance']
+          - name: instance-state-name
+            values: ['running']
+    relabel_configs:
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+      - source_labels: [__meta_ec2_availability_zone]
+        target_label: az
+      - source_labels: [__meta_ec2_private_ip]
+        target_label: private_ip
+    metrics_path: /metrics
+    scheme: http
+
+  # ── Node Exporter on App EC2 ──────────────────────────────────────────────
+  - job_name: 'ec2-node'
+    ec2_sd_configs:
+      - region: ${AWS_REGION}
+        port: 9100
+        filters:
+          - name: tag:Name
+            values: ['blog-app-asg-instance']
+          - name: instance-state-name
+            values: ['running']
+    relabel_configs:
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+      - source_labels: [__meta_ec2_availability_zone]
+        target_label: az
+
+  # ── CloudWatch (RDS, Redis, ALB, ASG) ────────────────────────────────────
+  # honor_timestamps: false — CW data delay causes empty instant queries otherwise
+  - job_name: 'cloudwatch'
+    scrape_interval: 60s
+    scrape_timeout: 55s
+    honor_timestamps: false
+    static_configs:
+      - targets: ['cloudwatch-exporter:9106']
+    metrics_path: /metrics

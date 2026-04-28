@@ -1,0 +1,94 @@
+version: '3.8'
+
+# Monitoring stack for dedicated EC2 in public subnet.
+# AWS credentials come from the EC2 IAM role — no credential files needed.
+# Grafana password is set via GF_SECURITY_ADMIN_PASSWORD in the .env file.
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    env_file: .env
+    entrypoint:
+      - sh
+      - -c
+      - |
+        envsubst < /etc/prometheus/prometheus.yml.template > /etc/prometheus/prometheus.yml
+        exec /bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --storage.tsdb.retention.time=30d \
+          --web.enable-lifecycle
+    volumes:
+      - ./prometheus.yml.template:/etc/prometheus/prometheus.yml.template:ro
+      - ./prometheus-rules.yml:/etc/prometheus/rules/prometheus-rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:2.9.9
+    container_name: loki
+    restart: unless-stopped
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/tmp/loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+    env_file: .env
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
+  cloudwatch-exporter:
+    image: prom/cloudwatch-exporter:latest
+    container_name: cloudwatch-exporter
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_REGION}
+    volumes:
+      - ./cloudwatch-config.yml:/config/config.yml:ro
+    ports:
+      - "9106:9106"
+
+volumes:
+  prometheus_data:
+  loki_data:
+  grafana_data:

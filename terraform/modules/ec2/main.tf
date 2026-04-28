@@ -115,12 +115,6 @@ SVCEOF
     systemctl daemon-reload
     systemctl enable --now node_exporter
 
-    # Install Tailscale (for monitoring agent connectivity)
-    %{if var.tailscale_authkey != ""}
-    curl -fsSL https://tailscale.com/install.sh | sh
-    systemctl enable --now tailscaled
-    tailscale up --authkey=${var.tailscale_authkey} --accept-routes
-    %{endif}
   EOF
 }
 

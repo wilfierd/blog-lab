@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -25,8 +25,14 @@ var (
 )
 
 func main() {
+	logLevel := slog.LevelInfo
+	if os.Getenv("LOG_LEVEL") == "DEBUG" {
+		logLevel = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+
 	if err := godotenv.Load(); err != nil {
-		log.Println("Note: .env file not found, relying on system environment variables or AWS Secrets Manager")
+		slog.Info("no .env file, using system environment or AWS Secrets Manager")
 	}
 
 	// Fetch secrets from AWS Secrets Manager if a secret name is provided
@@ -45,7 +51,8 @@ func main() {
 	var err error
 	db, err = sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to open database", "err", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 	migrate()
@@ -65,7 +72,8 @@ func main() {
 
 	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
 	if redirectURL == "" {
-		log.Fatal("GOOGLE_REDIRECT_URL environment variable is required")
+		slog.Error("GOOGLE_REDIRECT_URL environment variable is required")
+		os.Exit(1)
 	}
 
 	oauthConfig = &oauth2.Config{
@@ -136,6 +144,6 @@ func main() {
 	// Health
 	r.GET("/api/health", healthCheck)
 
-	log.Println("Backend running on http://localhost:8080")
+	slog.Info("backend starting", "addr", ":8080")
 	r.Run(":8080")
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -69,6 +70,7 @@ func createUser(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	slog.Info("admin created user", "new_username", body.Username, "role", body.Role, "new_user_id", id, "ip", c.ClientIP())
 	c.JSON(201, gin.H{"id": id, "message": "user created"})
 }
 
@@ -98,6 +100,7 @@ func updateUser(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	slog.Info("admin updated user", "user_id", id, "role", body.Role, "ip", c.ClientIP())
 	c.JSON(200, gin.H{"message": "user updated"})
 }
 
@@ -114,5 +117,6 @@ func deleteUser(c *gin.Context) {
 	}
 	db.Exec(`DELETE FROM posts WHERE user_id = $1`, id)
 	db.Exec(`DELETE FROM users WHERE id = $1`, id)
+	slog.Warn("admin deleted user", "deleted_user_id", id, "ip", c.ClientIP())
 	c.JSON(200, gin.H{"message": "user deleted"})
 }

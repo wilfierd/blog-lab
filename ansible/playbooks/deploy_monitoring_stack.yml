@@ -1,0 +1,100 @@
+---
+# Deploy monitoring stack (Prometheus + Grafana + Loki + Alertmanager + CloudWatch)
+# to the dedicated monitoring EC2 in the public subnet.
+#
+# Prerequisites:
+#   - Monitoring EC2 must be running (provisioned by Terraform)
+#   - monitoring-ec2/.env must be populated (or pass GRAFANA_PASSWORD + AWS_REGION)
+#
+# Usage:
+#   ansible-playbook playbooks/deploy_monitoring_stack.yml \
+#     -e "grafana_password=$GRAFANA_PASSWORD" \
+#     -e "aws_region=$AWS_REGION"
+
+- name: Deploy monitoring stack to monitoring EC2
+  hosts: tag_Name_blog_monitoring
+  become: yes
+  gather_facts: no
+
+  pre_tasks:
+    - name: Wait for SSM connection (up to 3 minutes)
+      wait_for_connection:
+        timeout: 180
+        sleep: 10
+
+  tasks:
+    - name: Ensure monitoring directory exists
+      file:
+        path: /opt/monitoring
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+        mode: "0750"
+
+    - name: Ensure Grafana provisioning directory exists
+      file:
+        path: /opt/monitoring/grafana/provisioning/datasources
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+        mode: "0755"
+
+    - name: Copy monitoring config files
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: ec2-user
+        group: ec2-user
+        mode: "0644"
+      loop:
+        - { src: "../../monitoring-ec2/docker-compose.yml",                                          dest: "/opt/monitoring/docker-compose.yml" }
+        - { src: "../../monitoring-ec2/prometheus.yml.template",                                     dest: "/opt/monitoring/prometheus.yml.template" }
+        - { src: "../../monitoring-ec2/prometheus-rules.yml",                                        dest: "/opt/monitoring/prometheus-rules.yml" }
+        - { src: "../../monitoring-ec2/alertmanager.yml",                                            dest: "/opt/monitoring/alertmanager.yml" }
+        - { src: "../../monitoring-ec2/loki-config.yml",                                             dest: "/opt/monitoring/loki-config.yml" }
+        - { src: "../../monitoring-ec2/cloudwatch-config.yml",                                       dest: "/opt/monitoring/cloudwatch-config.yml" }
+        - { src: "../../monitoring-ec2/grafana/provisioning/datasources/datasources.yml",            dest: "/opt/monitoring/grafana/provisioning/datasources/datasources.yml" }
+
+    - name: Write .env file for docker-compose
+      copy:
+        dest: /opt/monitoring/.env
+        owner: ec2-user
+        group: ec2-user
+        mode: "0600"
+        content: |
+          AWS_REGION={{ aws_region | default('us-west-2') }}
+          GRAFANA_PASSWORD={{ grafana_password }}
+
+    - name: Pull latest images
+      shell: docker compose -f /opt/monitoring/docker-compose.yml pull
+      args:
+        executable: /bin/bash
+      become_user: ec2-user
+      environment:
+        HOME: /home/ec2-user
+
+    - name: Start monitoring stack
+      shell: docker compose -f /opt/monitoring/docker-compose.yml up -d --remove-orphans
+      args:
+        executable: /bin/bash
+      become_user: ec2-user
+      environment:
+        HOME: /home/ec2-user
+
+    - name: Wait for Grafana to be healthy
+      uri:
+        url: "http://localhost:3000/api/health"
+        status_code: 200
+      register: grafana_health
+      retries: 12
+      delay: 10
+      until: grafana_health.status == 200
+
+    - name: Wait for Prometheus to be healthy
+      uri:
+        url: "http://localhost:9090/-/healthy"
+        status_code: 200
+      register: prometheus_health
+      retries: 12
+      delay: 10
+      until: prometheus_health.status == 200

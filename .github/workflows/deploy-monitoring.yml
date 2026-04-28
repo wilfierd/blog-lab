@@ -1,4 +1,4 @@
-name: Deploy Monitoring Agent
+name: Deploy Monitoring
 
 on:
   push:
@@ -6,13 +6,16 @@ on:
       - main
     paths:
       - 'ansible/roles/monitoring_agent/**'
-      - 'monitoring-local/**'
+      - 'monitoring-ec2/**'
 
   workflow_dispatch:
 
 jobs:
-  deploy:
-    name: Deploy Monitoring Agent to EC2
+  # ──────────────────────────────────────────────
+  # JOB 1: Deploy monitoring stack to monitoring EC2
+  # ──────────────────────────────────────────────
+  deploy-stack:
+    name: Deploy Stack to Monitoring EC2
     runs-on: ubuntu-latest
 
     steps:
@@ -29,15 +32,53 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Deploy Monitoring Agent
+    - name: Deploy monitoring stack
       env:
         ANSIBLE_HOST_KEY_CHECKING: "False"
       run: |
-        BUCKET=$(echo "${{ secrets.AWS_BUCKET_NAME }}" | tr -d '[:space:]')
         REGION=$(echo "${{ secrets.AWS_REGION }}" | tr -d '[:space:]')
         cd ansible
+        ansible-playbook playbooks/deploy_monitoring_stack.yml \
+          -e "aws_region=${REGION}" \
+          -e "grafana_password=${{ secrets.GRAFANA_PASSWORD }}"
+
+  # ──────────────────────────────────────────────
+  # JOB 2: Deploy monitoring agents to app EC2s
+  #         (node-exporter + promtail)
+  # ──────────────────────────────────────────────
+  deploy-agents:
+    name: Deploy Agents to App EC2s
+    runs-on: ubuntu-latest
+    needs: deploy-stack
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Ansible
+      uses: ./.github/actions/ansible-setup
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Fetch monitoring EC2 private IP
+      id: monitoring
+      run: |
+        PRIVATE_IP=$(aws ec2 describe-instances \
+          --filters "Name=tag:Name,Values=blog-monitoring" \
+                    "Name=instance-state-name,Values=running" \
+          --query 'Reservations[0].Instances[0].PrivateIpAddress' \
+          --output text --region "${{ secrets.AWS_REGION }}")
+        echo "private_ip=${PRIVATE_IP}" >> $GITHUB_OUTPUT
+
+    - name: Deploy monitoring agents
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"
+      run: |
+        cd ansible
         ansible-playbook playbooks/deploy_monitoring_agent.yml \
-          -e "bucket=${BUCKET}" \
-          -e "region=${REGION}" \
-          -e "tailscale_authkey=${{ secrets.TAILSCALE_AUTHKEY }}" \
-          -e "loki_local_tailscale_ip=${{ secrets.LOKI_TAILSCALE_IP }}"
+          -e "loki_push_ip=${{ steps.monitoring.outputs.private_ip }}"

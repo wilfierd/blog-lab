@@ -2,10 +2,6 @@
 - name: Install node-exporter
   include_tasks: node_exporter.yml
 
-- name: Install and configure Tailscale
-  include_tasks: tailscale.yml
-  when: tailscale_authkey != ""
-
 - name: Install and configure Promtail
   include_tasks: promtail.yml
-  when: loki_local_tailscale_ip != ""
+  when: loki_push_ip != ""

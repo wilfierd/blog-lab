@@ -33,9 +33,3 @@ variable "aws_region" {
   type        = string
 }
 
-variable "tailscale_authkey" {
-  description = "Tailscale auth key for EC2 instances to auto-join tailnet"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
