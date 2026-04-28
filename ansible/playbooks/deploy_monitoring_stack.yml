@@ -81,7 +81,7 @@
           GRAFANA_PASSWORD={{ grafana_password }}
 
     - name: Pull latest images
-      shell: cd /opt/monitoring && docker compose pull
+      shell: cd /opt/monitoring && docker-compose pull
       args:
         executable: /bin/bash
       become_user: ec2-user
@@ -89,7 +89,7 @@
         HOME: /home/ec2-user
 
     - name: Start monitoring stack
-      shell: cd /opt/monitoring && docker compose up -d --remove-orphans
+      shell: cd /opt/monitoring && docker-compose up -d --remove-orphans
       args:
         executable: /bin/bash
       become_user: ec2-user
