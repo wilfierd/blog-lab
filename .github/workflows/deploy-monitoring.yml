@@ -43,7 +43,10 @@ jobs:
         ansible-playbook playbooks/deploy_monitoring_stack.yml \
           -e "bucket=${BUCKET}" \
           -e "aws_region=${REGION}" \
-          -e "grafana_password=${{ secrets.GRAFANA_PASSWORD }}"
+          -e "grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+          -e "alertmanager_smtp_from=${{ secrets.ALERTMANAGER_SMTP_FROM }}" \
+          -e "alertmanager_smtp_password=${{ secrets.ALERTMANAGER_SMTP_PASSWORD }}" \
+          -e "alertmanager_email_to=${{ secrets.ALERTMANAGER_EMAIL_TO }}"
 
   # ──────────────────────────────────────────────
   # JOB 2: Deploy monitoring agents to app EC2s

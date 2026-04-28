@@ -34,13 +34,21 @@
         - /opt/monitoring/grafana/provisioning/datasources
         - /opt/monitoring/grafana/provisioning/dashboards
 
-    - name: Generate prometheus.yml from template (region substituted by Ansible)
+    - name: Generate prometheus.yml from template
       template:
         src: "../../monitoring-ec2/prometheus.yml.j2"
         dest: /opt/monitoring/prometheus.yml
         owner: ec2-user
         group: ec2-user
         mode: "0644"
+
+    - name: Generate alertmanager.yml from template
+      template:
+        src: "../../monitoring-ec2/alertmanager.yml.j2"
+        dest: /opt/monitoring/alertmanager.yml
+        owner: ec2-user
+        group: ec2-user
+        mode: "0600"
 
     - name: Copy monitoring config files
       copy:
@@ -52,7 +60,6 @@
       loop:
         - { src: "../../monitoring-ec2/docker-compose.yml",                                          dest: "/opt/monitoring/docker-compose.yml" }
         - { src: "../../monitoring-ec2/prometheus-rules.yml",                                        dest: "/opt/monitoring/prometheus-rules.yml" }
-        - { src: "../../monitoring-ec2/alertmanager.yml",                                            dest: "/opt/monitoring/alertmanager.yml" }
         - { src: "../../monitoring-ec2/loki-config.yml",                                             dest: "/opt/monitoring/loki-config.yml" }
         - { src: "../../monitoring-ec2/cloudwatch-config.yml",                                       dest: "/opt/monitoring/cloudwatch-config.yml" }
         - { src: "../../monitoring-ec2/grafana/provisioning/datasources/datasources.yml",            dest: "/opt/monitoring/grafana/provisioning/datasources/datasources.yml" }
