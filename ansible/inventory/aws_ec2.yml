@@ -1,11 +1,7 @@
 plugin: aws_ec2
 regions:
   - us-west-2
-# Thêm region mới
-# add  - key: placement.region
-#        prefix: aws_region
 filters:
-  tag:Name: blog-app-asg-instance
   instance-state-name: running
 
 keyed_groups:
