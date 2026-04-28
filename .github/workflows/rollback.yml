@@ -78,3 +78,28 @@ jobs:
           -e "region=${REGION}" \
           -e "rollback_version=${{ inputs.version }}"
 
+    - name: Smoke test via ALB
+      run: |
+        ALB_ARN=$(aws resourcegroupstaggingapi get-resources \
+          --resource-type-filters elasticloadbalancing:loadbalancer \
+          --tag-filters "Key=Name,Values=blog-alb" \
+          --query 'ResourceTagMappingList[0].ResourceARN' \
+          --output text)
+        if [ -z "$ALB_ARN" ] || [ "$ALB_ARN" = "None" ]; then
+          echo "::error::ALB not found via tag Name=blog-alb"
+          exit 1
+        fi
+        ALB_DNS=$(aws elbv2 describe-load-balancers \
+          --load-balancer-arns "$ALB_ARN" \
+          --query 'LoadBalancers[0].DNSName' \
+          --output text)
+        for i in {1..8}; do
+          if curl -sf "http://${ALB_DNS}/api/health" > /dev/null; then
+            echo "✅ Rollback smoke test passed (attempt $i) — version ${{ inputs.version }} is live"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "❌ Rollback smoke test failed — app may not be healthy after rollback"
+        exit 1
+

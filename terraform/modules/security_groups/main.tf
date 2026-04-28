@@ -23,7 +23,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "app" {
   name        = "blog-app-sg"
-  description = "Allow traffic from ALB and metrics scraping from monitoring"
+  description = "Allow traffic from ALB to app instances"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -95,21 +95,37 @@ resource "aws_security_group" "monitoring" {
   # NOTE: Loki push from app_sg is in aws_security_group_rule below
   # to avoid cyclic dependency with app_sg
 
-  # Prometheus and Alertmanager: VPC-internal only
+  # Monitoring services: Open for debugging (previously VPC-internal only)
   ingress {
-    description = "Prometheus UI - VPC internal"
+    description = "Prometheus UI"
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    description = "Alertmanager - VPC internal"
+    description = "Loki API"
+    from_port   = 3100
+    to_port     = 3100
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Alertmanager"
     from_port   = 9093
     to_port     = 9093
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "CloudWatch Exporter"
+    from_port   = 9106
+    to_port     = 9106
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {

@@ -31,9 +31,10 @@ services:
     image: grafana/loki:2.9.9
     container_name: loki
     restart: unless-stopped
+    user: "0"
     volumes:
       - ./loki-config.yml:/etc/loki/local-config.yaml:ro
-      - loki_data:/tmp/loki
+      - ./loki-data:/tmp/loki
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
@@ -90,5 +91,4 @@ services:
 
 volumes:
   prometheus_data:
-  loki_data:
   grafana_data:

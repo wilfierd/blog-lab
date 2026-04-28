@@ -98,8 +98,17 @@ jobs:
 
     - name: Smoke test via ALB
       run: |
+        ALB_ARN=$(aws resourcegroupstaggingapi get-resources \
+          --resource-type-filters elasticloadbalancing:loadbalancer \
+          --tag-filters "Key=Name,Values=blog-alb" \
+          --query 'ResourceTagMappingList[0].ResourceARN' \
+          --output text)
+        if [ -z "$ALB_ARN" ] || [ "$ALB_ARN" = "None" ]; then
+          echo "::error::ALB not found via tag Name=blog-alb"
+          exit 1
+        fi
         ALB_DNS=$(aws elbv2 describe-load-balancers \
-          --names blog-alb \
+          --load-balancer-arns "$ALB_ARN" \
           --query 'LoadBalancers[0].DNSName' \
           --output text)
         for i in {1..5}; do

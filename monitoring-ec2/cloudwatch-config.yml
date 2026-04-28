@@ -141,12 +141,12 @@ metrics:
     aws_statistics: [Average, Maximum]
     period_seconds: 60
 
-  # ── ALB ─────────────────────────────────────────────────────────────────────
+  # ── ALB (Dynamic Discovery via Regex) ───────────────────────────────────────
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: RequestCount
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -154,7 +154,7 @@ metrics:
     aws_metric_name: HTTPCode_ELB_5XX_Count
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -162,7 +162,7 @@ metrics:
     aws_metric_name: HTTPCode_Target_2XX_Count
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -170,7 +170,7 @@ metrics:
     aws_metric_name: HTTPCode_Target_4XX_Count
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -178,7 +178,7 @@ metrics:
     aws_metric_name: HTTPCode_Target_5XX_Count
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -186,7 +186,7 @@ metrics:
     aws_metric_name: TargetResponseTime
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Average, Maximum]
     period_seconds: 60
 
@@ -194,7 +194,7 @@ metrics:
     aws_metric_name: ActiveConnectionCount
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -202,7 +202,7 @@ metrics:
     aws_metric_name: ProcessedBytes
     aws_dimensions: [LoadBalancer]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
+      LoadBalancer: ["app/blog-alb/.*"]
     aws_statistics: [Sum]
     period_seconds: 60
 
@@ -210,8 +210,8 @@ metrics:
     aws_metric_name: HealthyHostCount
     aws_dimensions: [LoadBalancer, TargetGroup]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
-      TargetGroup: ["targetgroup/blog-tg/44d6541ff7ac433b"]
+      LoadBalancer: ["app/blog-alb/.*"]
+      TargetGroup: ["targetgroup/blog-tg/.*"]
     aws_statistics: [Average]
     period_seconds: 60
 
@@ -219,8 +219,8 @@ metrics:
     aws_metric_name: UnHealthyHostCount
     aws_dimensions: [LoadBalancer, TargetGroup]
     aws_dimension_select_regex:
-      LoadBalancer: ["app/blog-alb/f47c51590bb4702a"]
-      TargetGroup: ["targetgroup/blog-tg/44d6541ff7ac433b"]
+      LoadBalancer: ["app/blog-alb/.*"]
+      TargetGroup: ["targetgroup/blog-tg/.*"]
     aws_statistics: [Average]
     period_seconds: 60
 
