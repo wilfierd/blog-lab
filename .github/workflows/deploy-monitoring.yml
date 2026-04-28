@@ -1,0 +1,43 @@
+name: Deploy Monitoring Agent
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ansible/roles/monitoring_agent/**'
+      - 'monitoring-local/**'
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Monitoring Agent to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Ansible
+      uses: ./.github/actions/ansible-setup
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy Monitoring Agent
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"
+      run: |
+        BUCKET=$(echo "${{ secrets.AWS_BUCKET_NAME }}" | tr -d '[:space:]')
+        REGION=$(echo "${{ secrets.AWS_REGION }}" | tr -d '[:space:]')
+        cd ansible
+        ansible-playbook playbooks/deploy_monitoring_agent.yml \
+          -e "bucket=${BUCKET}" \
+          -e "region=${REGION}" \
+          -e "tailscale_authkey=${{ secrets.TAILSCALE_AUTHKEY }}" \
+          -e "loki_local_tailscale_ip=${{ secrets.LOKI_TAILSCALE_IP }}"

@@ -1,0 +1,80 @@
+name: Rollback Blog App
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'SHA 8 ký tự cần rollback về (để trống để chỉ xem danh sách)'
+        required: false
+        type: string
+        default: ''
+      reason:
+        description: 'Lý do rollback'
+        required: false
+        type: string
+        default: 'manual rollback'
+
+jobs:
+  # ──────────────────────────────────────────────
+  # JOB 1: Scan EC2 — liệt kê versions có sẵn
+  # ──────────────────────────────────────────────
+  list-versions:
+    name: List Available Versions on EC2
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Scan EC2 for available versions
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+      run: |
+        chmod +x scripts/list-versions.sh
+        ./scripts/list-versions.sh "${{ inputs.version }}"
+
+  # ──────────────────────────────────────────────
+  # JOB 2: Rollback — chỉ chạy nếu có version input
+  # ──────────────────────────────────────────────
+  rollback:
+    name: Rollback to ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    needs: list-versions
+    if: ${{ inputs.version != '' }}
+    environment: production
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Ansible
+      uses: ./.github/actions/ansible-setup
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Run Rollback Playbook
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"
+      run: |
+        BUCKET=$(echo "${{ secrets.AWS_BUCKET_NAME }}" | tr -d '[:space:]')
+        REGION=$(echo "${{ secrets.AWS_REGION }}" | tr -d '[:space:]')
+        echo "Rolling back to: ${{ inputs.version }}"
+        echo "Reason: ${{ inputs.reason }}"
+        cd ansible
+        ansible-playbook playbooks/rollback.yml \
+          -e "bucket=${BUCKET}" \
+          -e "region=${REGION}" \
+          -e "rollback_version=${{ inputs.version }}"
+

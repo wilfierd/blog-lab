@@ -1,0 +1,41 @@
+---
+- name: Rollback Blog App — chọn version cụ thể
+  hosts: tag_Name_blog_app_asg_instance
+  serial: 1
+  gather_facts: no
+
+  pre_tasks:
+    - name: Wait for SSM connection
+      wait_for_connection:
+        timeout: 180
+        sleep: 10
+
+    - name: Validate rollback_version is provided
+      fail:
+        msg: "Thiếu biến rollback_version. Chạy với: -e rollback_version=<sha>"
+      when: rollback_version is not defined or rollback_version == ''
+
+    - name: Show rollback target
+      debug:
+        msg: "Rolling back {{ inventory_hostname }} → {{ app_name }}-{{ rollback_version }}"
+
+  tasks:
+    - name: Stop service
+      systemd:
+        name: "{{ service_name }}"
+        state: stopped
+      become: yes
+      ignore_errors: yes
+
+    - name: Kill any remaining processes
+      shell: pkill -f {{ app_name }} || true
+      become: yes
+      failed_when: false
+
+    - include_role:
+        name: blog_deploy
+        tasks_from: rollback_version.yml
+
+    - include_role:
+        name: blog_deploy
+        tasks_from: verify.yml

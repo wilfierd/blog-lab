@@ -1,5 +1,30 @@
 ---
-- name: Backup current binary
+- name: Ensure releases directory exists
+  file:
+    path: "{{ app_dir }}/releases"
+    state: directory
+    owner: ec2-user
+    group: ec2-user
+    mode: "0755"
+  become: yes
+
+- name: Save versioned backup to releases/
+  copy:
+    src: "{{ app_dir }}/{{ app_name }}"
+    dest: "{{ app_dir }}/releases/{{ app_name }}-{{ binary_version | default('unknown') }}"
+    remote_src: yes
+    mode: "0755"
+  ignore_errors: yes
+
+- name: Prune releases — keep last 5 versions
+  shell: |
+    ls -t {{ app_dir }}/releases/{{ app_name }}-* 2>/dev/null | tail -n +6 | xargs -r rm -f
+  args:
+    executable: /bin/bash
+  become: yes
+  ignore_errors: yes
+
+- name: Backup current binary (legacy .backup for Ansible auto-rollback)
   copy:
     src: "{{ app_dir }}/{{ app_name }}"
     dest: "{{ app_dir }}/{{ app_name }}.backup"
@@ -21,7 +46,7 @@
 
 - name: Download application binary from S3
   shell: >
-    aws s3 cp s3://{{ bucket }}/{{ app_name }}
+    aws s3 cp s3://{{ bucket }}/{{ 'releases/' + app_name + '-' + binary_version if binary_version is defined and binary_version != '' else app_name }}
     {{ app_dir }}/{{ app_name }} --region {{ region }}
   args:
     executable: /bin/bash

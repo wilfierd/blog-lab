@@ -1,0 +1,46 @@
+---
+# Rollback về một version cụ thể theo SHA
+# Biến cần có: rollback_version (8-char SHA)
+
+- name: Check version exists locally on EC2
+  stat:
+    path: "{{ app_dir }}/releases/{{ app_name }}-{{ rollback_version }}"
+  register: local_version
+
+- name: Restore from local releases/ (fast path)
+  copy:
+    src: "{{ app_dir }}/releases/{{ app_name }}-{{ rollback_version }}"
+    dest: "{{ app_dir }}/{{ app_name }}"
+    remote_src: yes
+    mode: "0755"
+    owner: ec2-user
+    group: ec2-user
+  when: local_version.stat.exists
+  become: yes
+
+- name: Fallback — pull from S3 if not available locally
+  shell: >
+    aws s3 cp s3://{{ bucket }}/releases/{{ app_name }}-{{ rollback_version }}
+    {{ app_dir }}/{{ app_name }} --region {{ region }}
+  args:
+    executable: /bin/bash
+  when: not local_version.stat.exists
+  retries: 3
+  delay: 10
+  register: s3_pull
+  until: s3_pull.rc == 0
+
+- name: Set executable permission
+  file:
+    path: "{{ app_dir }}/{{ app_name }}"
+    mode: "0755"
+    owner: ec2-user
+    group: ec2-user
+  become: yes
+
+- name: Restart service
+  systemd:
+    name: "{{ service_name }}"
+    state: restarted
+    enabled: yes
+  become: yes

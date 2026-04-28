@@ -1,0 +1,21 @@
+name: Setup Ansible
+description: Install Python, Ansible, SSM plugin, and collections
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Ansible and SSM plugin
+      shell: bash
+      run: |
+        pip install -r ansible/requirements.txt
+        curl -s "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "ssm-plugin.deb"
+        sudo dpkg -i ssm-plugin.deb
+
+    - name: Install Ansible Collections
+      shell: bash
+      run: ansible-galaxy collection install -r ansible/requirements.yml
