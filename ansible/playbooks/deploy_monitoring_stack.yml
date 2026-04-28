@@ -70,6 +70,7 @@
         group: ec2-user
         mode: "0600"
         content: |
+          AWS_REGION={{ aws_region | default('us-west-2') }}
           GRAFANA_PASSWORD={{ grafana_password }}
 
     - name: Pull latest images
@@ -87,6 +88,14 @@
       become_user: ec2-user
       environment:
         HOME: /home/ec2-user
+
+    - name: Force reload Prometheus config (hot-reload via lifecycle API)
+      uri:
+        url: "http://localhost:9090/-/reload"
+        method: POST
+        status_code: [200, 204]
+      retries: 5
+      delay: 5
 
     - name: Wait for Grafana to be healthy
       uri:

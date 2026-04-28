@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'ansible/roles/monitoring_agent/**'
+      - 'ansible/playbooks/deploy_monitoring_stack.yml'
       - 'monitoring-ec2/**'
 
   workflow_dispatch:
