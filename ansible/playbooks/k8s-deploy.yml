@@ -29,14 +29,14 @@
         -f /tmp/helm/blog-app/secrets-values.yaml
         -n {{ namespace }}
         --wait --timeout 5m
-      become: true
-      become_user: devops
+      environment:
+        KUBECONFIG: /home/devops/.kube/config
       register: helm_result
 
     - name: Kiểm tra rollout status
       command: kubectl rollout status deployment/blog-app -n {{ namespace }} --timeout=300s
-      become: true
-      become_user: devops
+      environment:
+        KUBECONFIG: /home/devops/.kube/config
 
     - name: Health check
       uri:
@@ -50,8 +50,8 @@
 
     - name: Rollback nếu health check thất bại
       command: helm rollback blog-app -n {{ namespace }}
-      become: true
-      become_user: devops
+      environment:
+        KUBECONFIG: /home/devops/.kube/config
       when: health_result.failed is defined and health_result.failed
 
     - name: Thông báo kết quả
