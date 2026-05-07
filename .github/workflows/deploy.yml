@@ -3,7 +3,7 @@ name: Deploy Blog App to EC2 (Private Subnet)
 on:
   push:
     branches:
-      - main
+      - aws-ec2
 
 # ============================================================
 # Job 1: Build   → Build binary Go (ARM64), upload S3
