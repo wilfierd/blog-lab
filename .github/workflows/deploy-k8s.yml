@@ -57,6 +57,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Create secrets-values.yaml
+        run: |
+          cat > helm/blog-app/secrets-values.yaml << EOF
+          secrets:
+            dbPassword: "${{ secrets.DB_PASSWORD }}"
+            sessionSecret: "${{ secrets.SESSION_SECRET }}"
+            googleClientID: "${{ secrets.GOOGLE_CLIENT_ID }}"
+            googleClientSecret: "${{ secrets.GOOGLE_CLIENT_SECRET }}"
+            minioAccessKey: "${{ secrets.MINIO_ACCESS_KEY }}"
+            minioSecretKey: "${{ secrets.MINIO_SECRET_KEY }}"
+          EOF
+
       - name: Install Ansible Collections
         run: ansible-galaxy collection install -r ansible/requirements.yml
 
