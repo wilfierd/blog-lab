@@ -31,6 +31,15 @@
         KUBECONFIG: /home/devops/.kube/config
 
     # ── App ────────────────────────────────────────────────────────────────
+    - name: Reset release nếu đang stuck (pending-install/pending-upgrade)
+      shell: |
+        STATUS=$(helm status blog-app -n {{ namespace }} --kubeconfig /home/devops/.kube/config 2>/dev/null | grep STATUS | awk '{print $2}')
+        if [[ "$STATUS" == "pending-install" || "$STATUS" == "pending-upgrade" || "$STATUS" == "pending-rollback" ]]; then
+          helm rollback blog-app -n {{ namespace }} --kubeconfig /home/devops/.kube/config || \
+          helm uninstall blog-app -n {{ namespace }} --kubeconfig /home/devops/.kube/config
+        fi
+      ignore_errors: true
+
     - name: Tạo thư mục helm trên master
       file:
         path: /tmp/helm/blog-app
