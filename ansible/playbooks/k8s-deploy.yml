@@ -1,15 +1,37 @@
 ---
-# Rolling deploy blog-app lên K8s qua Helm
-# Chạy: ansible-playbook playbooks/k8s-deploy.yml -i inventory/k8s_hosts.ini
-#        -e "image_tag=abc12345" -e "dockerhub_username=wilfierd"
 - hosts: k8s_master
   gather_facts: false
   vars:
     namespace: blog
+    repo_root: "{{ playbook_dir }}/../.."
     chart_local_path: "{{ playbook_dir }}/../../helm/blog-app"
 
   tasks:
-    - name: Tạo thư mục đích trên master
+    # ── Infra (idempotent) ─────────────────────────────────────────────────
+    - name: Tạo thư mục k8s trên master
+      file:
+        path: /tmp/k8s
+        state: directory
+        mode: '0755'
+
+    - name: Copy k8s manifests lên master
+      synchronize:
+        src: "{{ repo_root }}/k8s/"
+        dest: /tmp/k8s/
+        delete: true
+
+    - name: Apply namespace + stateful services
+      command: kubectl apply -f /tmp/k8s/{{ item }} -R
+      loop:
+        - namespace.yaml
+        - postgres/
+        - redis/
+        - minio/
+      environment:
+        KUBECONFIG: /home/devops/.kube/config
+
+    # ── App ────────────────────────────────────────────────────────────────
+    - name: Tạo thư mục helm trên master
       file:
         path: /tmp/helm/blog-app
         state: directory
@@ -21,7 +43,7 @@
         dest: /tmp/helm/blog-app/
         delete: true
 
-    - name: Helm upgrade blog-app với image mới
+    - name: Helm upgrade --install blog-app
       command: >
         helm upgrade --install blog-app /tmp/helm/blog-app
         --set image.repository={{ dockerhub_username }}/blog-app
