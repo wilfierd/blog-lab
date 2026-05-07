@@ -271,7 +271,12 @@ func createS3PresignClient(ctx context.Context, region string) (*s3.PresignClien
 	if err != nil {
 		return nil, err
 	}
-	s3c := s3.NewFromConfig(cfg)
+	s3c := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if endpoint := os.Getenv("AWS_ENDPOINT_URL"); endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+			o.UsePathStyle = true // required for MinIO
+		}
+	})
 	return s3.NewPresignClient(s3c), nil
 }
 

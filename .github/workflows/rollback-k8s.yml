@@ -1,0 +1,43 @@
+name: Rollback Blog App on Kubernetes
+
+on:
+  workflow_dispatch:
+    inputs:
+      helm_revision:
+        description: "Helm revision muốn rollback về (bỏ trống = 1 bước trước)"
+        required: false
+        default: ""
+      reason:
+        description: "Lý do rollback"
+        required: true
+
+jobs:
+  rollback:
+    name: Rollback via Ansible
+    runs-on: self-hosted
+    environment: production   # yêu cầu approval
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Ansible Collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Ansible helm rollback
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          EXTRA_VARS=""
+          if [ -n "${{ inputs.helm_revision }}" ]; then
+            EXTRA_VARS="-e helm_revision=${{ inputs.helm_revision }}"
+          fi
+          ansible-playbook ansible/playbooks/k8s-rollback.yml \
+            -i ansible/inventory/k8s_hosts.ini \
+            $EXTRA_VARS
+
+      - name: Log rollback
+        run: |
+          echo "## Rollback thực hiện bởi ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Lý do:** ${{ inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Revision:** ${{ inputs.helm_revision || 'previous' }}" >> $GITHUB_STEP_SUMMARY

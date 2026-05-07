@@ -1,0 +1,48 @@
+---
+# Rolling deploy blog-app lên K8s qua Helm
+# Chạy: ansible-playbook playbooks/k8s-deploy.yml -i inventory/k8s_hosts.ini
+#        -e "image_tag=abc12345" -e "dockerhub_username=wilfierd"
+- hosts: k8s_master
+  gather_facts: false
+  vars:
+    namespace: blog
+    chart_local_path: "{{ playbook_dir }}/../../helm/blog-app"
+
+  tasks:
+    - name: Copy Helm chart lên master
+      synchronize:
+        src: "{{ chart_local_path }}/"
+        dest: /tmp/helm/blog-app/
+        delete: true
+
+    - name: Helm upgrade blog-app với image mới
+      command: >
+        helm upgrade blog-app /tmp/helm/blog-app
+        --set image.repository={{ dockerhub_username }}/blog-app
+        --set image.tag={{ image_tag }}
+        -f /tmp/helm/blog-app/secrets-values.yaml
+        -n {{ namespace }}
+        --wait --timeout 5m
+      register: helm_result
+
+    - name: Kiểm tra rollout status
+      command: kubectl rollout status deployment/blog-app -n {{ namespace }} --timeout=300s
+
+    - name: Health check
+      uri:
+        url: "http://{{ inventory_hostname }}/api/health"
+        status_code: 200
+      delegate_to: localhost
+      retries: 5
+      delay: 5
+      ignore_errors: true
+      register: health_result
+
+    - name: Rollback nếu health check thất bại
+      command: helm rollback blog-app -n {{ namespace }}
+      when: health_result.failed is defined and health_result.failed
+
+    - name: Thông báo kết quả
+      debug:
+        msg: >
+          Deploy {{ image_tag }} {{ 'THÀNH CÔNG' if not health_result.failed else 'THẤT BẠI → đã rollback' }}

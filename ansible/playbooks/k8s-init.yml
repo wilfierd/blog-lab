@@ -1,0 +1,99 @@
+---
+# One-time setup: apply namespaces, stateful services, cài monitoring bằng Helm
+# Chạy: ansible-playbook playbooks/k8s-init.yml -i inventory/k8s_hosts.ini
+- hosts: k8s_master
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+  tasks:
+    - name: Label node .112 làm database node
+      command: kubectl label node 192.168.122.112 role=database --overwrite
+
+    - name: Copy K8s manifests lên master
+      synchronize:
+        src: "{{ repo_root }}/k8s/"
+        dest: /tmp/k8s/
+        delete: true
+
+    - name: Copy Helm chart lên master
+      synchronize:
+        src: "{{ repo_root }}/helm/"
+        dest: /tmp/helm/
+        delete: true
+
+    - name: Copy Helm values lên master
+      synchronize:
+        src: "{{ repo_root }}/helm-values/"
+        dest: /tmp/helm-values/
+        delete: true
+
+    - name: Apply namespaces
+      command: kubectl apply -f /tmp/k8s/namespace.yaml
+
+    - name: Apply PostgreSQL
+      command: kubectl apply -f /tmp/k8s/postgres/ -R
+
+    - name: Apply Redis
+      command: kubectl apply -f /tmp/k8s/redis/ -R
+
+    - name: Apply MinIO
+      command: kubectl apply -f /tmp/k8s/minio/ -R
+
+    - name: Chờ PostgreSQL sẵn sàng
+      command: >
+        kubectl wait --for=condition=ready pod -l app=postgres
+        -n blog --timeout=120s
+
+    - name: Chờ MinIO sẵn sàng
+      command: >
+        kubectl wait --for=condition=ready pod -l app=minio
+        -n blog --timeout=120s
+
+    - name: Tạo bucket blog-uploads trong MinIO
+      command: >
+        kubectl run minio-init --image=minio/mc --restart=Never -n blog
+        --env="MC_HOST_minio=http://nguyenhieu:pass123@minio:9000"
+        --command -- sh -c "mc mb minio/blog-uploads --ignore-existing"
+      ignore_errors: true
+
+    - name: Add Helm repos
+      command: "{{ item }}"
+      loop:
+        - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        - helm repo add grafana https://grafana.github.io/helm-charts
+        - helm repo update
+
+    - name: Install kube-prometheus-stack
+      command: >
+        helm upgrade --install kube-prom
+        prometheus-community/kube-prometheus-stack
+        -n monitoring --create-namespace
+        -f /tmp/helm-values/kube-prometheus-stack-values.yaml
+        --timeout 10m
+
+    - name: Install loki-stack
+      command: >
+        helm upgrade --install loki-stack
+        grafana/loki-stack
+        -n monitoring
+        -f /tmp/helm-values/loki-stack-values.yaml
+        --timeout 5m
+
+    - name: Install blog-app lần đầu
+      command: >
+        helm upgrade --install blog-app /tmp/helm/blog-app
+        -f /tmp/helm/blog-app/secrets-values.yaml
+        -n blog
+        --wait --timeout 5m
+
+    - name: Kiểm tra pods
+      command: kubectl get pods -n blog
+      register: blog_pods
+    - debug:
+        var: blog_pods.stdout_lines
+
+    - name: Kiểm tra monitoring pods
+      command: kubectl get pods -n monitoring
+      register: mon_pods
+    - debug:
+        var: mon_pods.stdout_lines

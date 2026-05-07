@@ -5,6 +5,7 @@
 .env
 *.tfvars
 *.tfvars.json
+secrets-values.yaml
 
 # Terraform runtime (never commit)
 **/.terraform/

@@ -1,0 +1,32 @@
+---
+# Rollback blog-app về revision trước hoặc revision chỉ định
+# Chạy: ansible-playbook playbooks/k8s-rollback.yml -i inventory/k8s_hosts.ini
+#        [-e "helm_revision=2"]   # bỏ qua để rollback 1 bước
+- hosts: k8s_master
+  gather_facts: false
+  vars:
+    namespace: blog
+
+  tasks:
+    - name: Xem helm history trước khi rollback
+      command: helm history blog-app -n {{ namespace }}
+      register: history
+    - debug:
+        var: history.stdout_lines
+
+    - name: Rollback về revision chỉ định
+      command: helm rollback blog-app {{ helm_revision }} -n {{ namespace }} --wait
+      when: helm_revision is defined
+
+    - name: Rollback 1 bước (revision trước)
+      command: helm rollback blog-app -n {{ namespace }} --wait
+      when: helm_revision is not defined
+
+    - name: Chờ deployment ổn định
+      command: kubectl rollout status deployment/blog-app -n {{ namespace }} --timeout=300s
+
+    - name: Kiểm tra pods sau rollback
+      command: kubectl get pods -n {{ namespace }}
+      register: pods
+    - debug:
+        var: pods.stdout_lines

@@ -1,0 +1,146 @@
+grafana:
+  adminPassword: changeme123   # thay bằng password thật
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.local           # thay bằng domain thật
+
+  sidecar:
+    dashboards:
+      enabled: true             # tự load ConfigMap có label grafana_dashboard="1"
+
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-stack:3100
+      access: proxy
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          resources:
+            requests:
+              storage: 1Gi
+
+  config:
+    global:
+      smtp_smarthost: smtp.gmail.com:587
+      smtp_from: hieulun76a@gmail.com
+      smtp_auth_username: hieulun76a@gmail.com
+      smtp_auth_password: rsppuufzwvdjcxjr
+      smtp_require_tls: true
+    route:
+      receiver: email-default
+      group_by: [alertname, severity]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - matchers: [severity="critical"]
+          receiver: email-critical
+          repeat_interval: 1h
+    receivers:
+      - name: email-default
+        email_configs:
+          - to: vexbravor@gmail.com
+            send_resolved: true
+      - name: email-critical
+        email_configs:
+          - to: vexbravor@gmail.com
+            send_resolved: true
+    inhibit_rules:
+      - source_matchers: [severity="critical"]
+        target_matchers: [severity="warning"]
+        equal: [alertname]
+
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          resources:
+            requests:
+              storage: 10Gi
+    additionalScrapeConfigs:
+      - job_name: blog-app
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [blog]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: blog-app
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:8080"
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+additionalPrometheusRulesMap:
+  blog-app-rules:
+    groups:
+      - name: auth_security
+        rules:
+          - alert: BruteForceLoginDetected
+            expr: increase(auth_login_total{status="failed"}[5m]) > 20
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Brute force login detected on blog-app"
+
+          - alert: DBConnectionPoolHigh
+            expr: go_sql_stats_connections_in_use / go_sql_stats_connections_max_open > 0.85
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "DB connection pool >85%"
+
+      - name: app_health
+        rules:
+          - alert: PodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total{namespace="blog"}[5m]) > 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} crash looping"
+
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace="blog", condition="true"} == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} not ready 5m"
+
+          - alert: PVCAlmostFull
+            expr: |
+              kubelet_volume_stats_used_bytes{namespace="blog"}
+              / kubelet_volume_stats_capacity_bytes{namespace="blog"} > 0.85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "PVC {{ $labels.persistentvolumeclaim }} >85%"
+
+          - alert: PostgresPVCCritical
+            expr: |
+              kubelet_volume_stats_used_bytes{namespace="blog",persistentvolumeclaim=~"postgres.*"}
+              / kubelet_volume_stats_capacity_bytes{namespace="blog",persistentvolumeclaim=~"postgres.*"} > 0.90
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "PostgreSQL PVC critically full >90%"

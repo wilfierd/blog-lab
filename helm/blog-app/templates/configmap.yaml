@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "blog-app.name" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blog-app.labels" . | nindent 4 }}
+data:
+  DB_HOST: {{ .Values.config.dbHost | quote }}
+  DB_PORT: {{ .Values.config.dbPort | quote }}
+  DB_NAME: {{ .Values.config.dbName | quote }}
+  DB_USER: {{ .Values.config.dbUser | quote }}
+  DB_SSLMODE: {{ .Values.config.dbSSLMode | quote }}
+  REDIS_ADDR: {{ .Values.config.redisAddr | quote }}
+  AWS_ENDPOINT_URL: {{ .Values.config.awsEndpointURL | quote }}
+  AWS_BUCKET_NAME: {{ .Values.config.awsBucketName | quote }}
+  AWS_REGION: {{ .Values.config.awsRegion | quote }}
+  GOOGLE_REDIRECT_URL: {{ .Values.config.googleRedirectURL | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  PRESIGN_EXPIRE_SECONDS: {{ .Values.config.presignExpireSeconds | quote }}
+  UPLOAD_ALLOWED_MIME: {{ .Values.config.uploadAllowedMime | quote }}
+  UPLOAD_MAX_SIZE_BYTES: {{ .Values.config.uploadMaxSizeBytes | quote }}
