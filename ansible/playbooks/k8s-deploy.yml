@@ -5,9 +5,10 @@
     namespace: blog
     repo_root: "{{ playbook_dir }}/../.."
     chart_local_path: "{{ playbook_dir }}/../../helm/blog-app"
+    kubeconfig: /home/devops/.kube/config
 
   tasks:
-    # ── Infra (idempotent) ─────────────────────────────────────────────────
+    # ── Infra manifests ────────────────────────────────────────────────────
     - name: Tạo thư mục k8s trên master
       file:
         path: /tmp/k8s
@@ -20,26 +21,48 @@
         dest: /tmp/k8s/
         delete: true
 
-    - name: Apply namespace + stateful services
+    - name: Apply namespace
+      command: kubectl apply -f /tmp/k8s/namespace.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Apply stateful services
       command: kubectl apply -f /tmp/k8s/{{ item }} -R
       loop:
-        - namespace.yaml
         - postgres/
         - redis/
         - minio/
       environment:
-        KUBECONFIG: /home/devops/.kube/config
+        KUBECONFIG: "{{ kubeconfig }}"
 
-    # ── App ────────────────────────────────────────────────────────────────
-    - name: Reset release nếu đang stuck (pending-install/pending-upgrade)
-      shell: |
-        STATUS=$(helm status blog-app -n {{ namespace }} --kubeconfig /home/devops/.kube/config 2>/dev/null | grep STATUS | awk '{print $2}')
-        if [[ "$STATUS" == "pending-install" || "$STATUS" == "pending-upgrade" || "$STATUS" == "pending-rollback" ]]; then
-          helm rollback blog-app -n {{ namespace }} --kubeconfig /home/devops/.kube/config || \
-          helm uninstall blog-app -n {{ namespace }} --kubeconfig /home/devops/.kube/config
-        fi
+    # Restart pods để pick up secret mới nếu có thay đổi
+    - name: Rollout restart stateful services
+      command: kubectl rollout restart statefulset/{{ item }} -n {{ namespace }}
+      loop:
+        - postgres
+        - redis
+        - minio
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       ignore_errors: true
 
+    # ── Chờ infra sẵn sàng ────────────────────────────────────────────────
+    - name: Chờ Redis ready
+      command: kubectl rollout status statefulset/redis -n {{ namespace }} --timeout=120s
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Chờ PostgreSQL ready
+      command: kubectl rollout status statefulset/postgres -n {{ namespace }} --timeout=120s
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Chờ MinIO ready
+      command: kubectl rollout status statefulset/minio -n {{ namespace }} --timeout=120s
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    # ── Deploy app ─────────────────────────────────────────────────────────
     - name: Tạo thư mục helm trên master
       file:
         path: /tmp/helm/blog-app
@@ -52,6 +75,15 @@
         dest: /tmp/helm/blog-app/
         delete: true
 
+    - name: Reset helm release nếu đang stuck
+      shell: |
+        STATUS=$(helm status blog-app -n {{ namespace }} --kubeconfig {{ kubeconfig }} 2>/dev/null | grep STATUS | awk '{print $2}')
+        if [[ "$STATUS" == "pending-install" || "$STATUS" == "pending-upgrade" || "$STATUS" == "pending-rollback" ]]; then
+          helm rollback blog-app -n {{ namespace }} --kubeconfig {{ kubeconfig }} || \
+          helm uninstall blog-app -n {{ namespace }} --kubeconfig {{ kubeconfig }}
+        fi
+      ignore_errors: true
+
     - name: Helm upgrade --install blog-app
       command: >
         helm upgrade --install blog-app /tmp/helm/blog-app
@@ -61,13 +93,8 @@
         -n {{ namespace }} --create-namespace
         --wait --timeout 5m
       environment:
-        KUBECONFIG: /home/devops/.kube/config
+        KUBECONFIG: "{{ kubeconfig }}"
       register: helm_result
-
-    - name: Kiểm tra rollout status
-      command: kubectl rollout status deployment/blog-app -n {{ namespace }} --timeout=300s
-      environment:
-        KUBECONFIG: /home/devops/.kube/config
 
     - name: Health check
       uri:
@@ -75,14 +102,14 @@
         status_code: 200
       delegate_to: localhost
       retries: 5
-      delay: 5
+      delay: 10
       ignore_errors: true
       register: health_result
 
     - name: Rollback nếu health check thất bại
       command: helm rollback blog-app -n {{ namespace }}
       environment:
-        KUBECONFIG: /home/devops/.kube/config
+        KUBECONFIG: "{{ kubeconfig }}"
       when: health_result.failed is defined and health_result.failed
 
     - name: Thông báo kết quả
