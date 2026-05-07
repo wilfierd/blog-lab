@@ -59,6 +59,7 @@ jobs:
       - name: Ansible helm upgrade blog-app
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          ANSIBLE_CONFIG: /dev/null
         run: |
           ansible-playbook ansible/playbooks/k8s-deploy.yml \
             -i ansible/inventory/k8s_hosts.ini \
