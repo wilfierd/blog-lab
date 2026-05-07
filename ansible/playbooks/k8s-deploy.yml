@@ -23,7 +23,7 @@
 
     - name: Helm upgrade blog-app với image mới
       command: >
-        helm upgrade blog-app /tmp/helm/blog-app
+        helm upgrade --install blog-app /tmp/helm/blog-app
         --set image.repository={{ dockerhub_username }}/blog-app
         --set image.tag={{ image_tag }}
         -f /tmp/helm/blog-app/secrets-values.yaml
