@@ -75,13 +75,14 @@
         dest: /tmp/helm/blog-app/
         delete: true
 
-    - name: Reset helm release nếu đang stuck
+    - name: Xóa helm lock secrets nếu đang stuck
       shell: |
-        STATUS=$(helm status blog-app -n {{ namespace }} --kubeconfig {{ kubeconfig }} 2>/dev/null | grep STATUS | awk '{print $2}')
-        if [[ "$STATUS" == "pending-install" || "$STATUS" == "pending-upgrade" || "$STATUS" == "pending-rollback" ]]; then
-          helm rollback blog-app -n {{ namespace }} --kubeconfig {{ kubeconfig }} || \
-          helm uninstall blog-app -n {{ namespace }} --kubeconfig {{ kubeconfig }}
-        fi
+        for status in pending-install pending-upgrade pending-rollback; do
+          kubectl get secrets -n {{ namespace }} \
+            -l "owner=helm,status=${status}" \
+            -o name --kubeconfig {{ kubeconfig }} | \
+            xargs -r kubectl delete -n {{ namespace }} --kubeconfig {{ kubeconfig }}
+        done
       ignore_errors: true
 
     - name: Helm upgrade --install blog-app
