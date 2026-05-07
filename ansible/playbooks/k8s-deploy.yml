@@ -27,7 +27,7 @@
         --set image.repository={{ dockerhub_username }}/blog-app
         --set image.tag={{ image_tag }}
         -f /tmp/helm/blog-app/secrets-values.yaml
-        -n {{ namespace }}
+        -n {{ namespace }} --create-namespace
         --wait --timeout 5m
       environment:
         KUBECONFIG: /home/devops/.kube/config
