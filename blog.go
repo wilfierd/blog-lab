@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 )
 
 func healthCheck(c *gin.Context) {
@@ -25,25 +22,9 @@ func healthCheck(c *gin.Context) {
 	if err := db.Ping(); err != nil {
 		dbStatus = "error: " + err.Error()
 	}
-	redisStatus := "connected"
-	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		redisStatus = "error: " + err.Error()
-	}
-	
-	// Lấy instance ID từ EC2 metadata (để test load balancing)
-	instanceID := os.Getenv("HOSTNAME") // Fallback to hostname
-	if metadata, err := http.Get("http://169.254.169.254/latest/meta-data/instance-id"); err == nil {
-		defer metadata.Body.Close()
-		if body, err := io.ReadAll(metadata.Body); err == nil {
-			instanceID = string(body)
-		}
-	}
-	
 	c.JSON(200, gin.H{
-		"status":      "ok",
-		"db":          dbStatus,
-		"redis":       redisStatus,
-		"instance_id": instanceID,
+		"status": "ok",
+		"db":     dbStatus,
 	})
 }
 
@@ -75,13 +56,6 @@ func scanPost(rows interface {
 }
 
 func getPosts(c *gin.Context) {
-	ctx := context.Background()
-	cached, err := rdb.Get(ctx, "posts").Result()
-	if err == nil {
-		c.Header("Content-Type", "application/json")
-		c.String(200, cached)
-		return
-	}
 	rows, err := db.Query(`
 		SELECT p.id, p.title, p.content, p.status, p.image_url,
 		       p.created_at, p.updated_at, u.name, u.avatar, p.user_id
@@ -104,8 +78,6 @@ func getPosts(c *gin.Context) {
 	if posts == nil {
 		posts = []Post{}
 	}
-	data, _ := json.Marshal(posts)
-	rdb.Set(ctx, "posts", string(data), 60*time.Second)
 	c.JSON(200, posts)
 }
 
@@ -161,9 +133,6 @@ func createPost(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	if body.Status == "published" {
-		rdb.Del(context.Background(), "posts")
-	}
 	c.JSON(201, gin.H{"id": id, "message": "post created", "status": body.Status})
 }
 
@@ -206,7 +175,6 @@ func updatePost(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	rdb.Del(context.Background(), "posts")
 	c.JSON(200, gin.H{"message": "post updated"})
 }
 
@@ -229,7 +197,6 @@ func deletePost(c *gin.Context) {
 	}
 
 	db.Exec(`DELETE FROM posts WHERE id = $1`, postID)
-	rdb.Del(context.Background(), "posts")
 	c.JSON(200, gin.H{"message": "post deleted"})
 }
 
@@ -384,6 +351,4 @@ func handlePresignGet(c *gin.Context) {
 	c.JSON(200, gin.H{"url": out.URL})
 }
 
-// suppress unused import warning
-var _ = redis.Nil
 var _ = http.StatusOK

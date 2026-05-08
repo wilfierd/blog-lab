@@ -30,28 +30,20 @@
       command: kubectl apply -f /tmp/k8s/{{ item }} -R
       loop:
         - postgres/
-        - redis/
         - minio/
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
 
-    # Restart pods để pick up secret mới nếu có thay đổi
     - name: Rollout restart stateful services
       command: kubectl rollout restart statefulset/{{ item }} -n {{ namespace }}
       loop:
         - postgres
-        - redis
         - minio
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
       ignore_errors: true
 
     # ── Chờ infra sẵn sàng ────────────────────────────────────────────────
-    - name: Chờ Redis ready
-      command: kubectl rollout status statefulset/redis -n {{ namespace }} --timeout=120s
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
-
     - name: Chờ PostgreSQL ready
       command: kubectl rollout status statefulset/postgres -n {{ namespace }} --timeout=120s
       environment:

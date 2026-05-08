@@ -12,14 +12,12 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
 var (
 	db          *sql.DB
-	rdb         *redis.Client
 	store       *sessions.CookieStore
 	oauthConfig *oauth2.Config
 )
@@ -57,9 +55,6 @@ func main() {
 	defer db.Close()
 	migrate()
 	os.MkdirAll("./uploads", 0755)
-
-	rdb = redis.NewClient(&redis.Options{Addr: os.Getenv("REDIS_ADDR")})
-	defer rdb.Close()
 
 	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
 	store.Options = &sessions.Options{
