@@ -5,6 +5,15 @@ on:
     branches:
       - main
 
+env:
+  MASTER_USER: nguyenhieu
+  MASTER_IP: 192.168.122.111
+  KUBECONFIG_PATH: /home/devops/.kube/config
+  NAMESPACE: blog
+  APP_NAME: blog-app
+  HELM_REMOTE_PATH: /tmp/helm/blog-app
+  SECRETS_LOCAL_PATH: $HOME/secrets/blog-secrets-values.yaml
+
 jobs:
   build-and-push:
     name: Build & Push Docker Image
@@ -22,7 +31,7 @@ jobs:
 
       - name: Build & Push image
         run: |
-          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/blog-app
+          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}
           TAG=${{ steps.meta.outputs.image_tag }}
           podman build --platform linux/amd64 -t $IMAGE:$TAG -t $IMAGE:latest .
           podman login docker.io -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
@@ -40,25 +49,25 @@ jobs:
 
       - name: Copy helm chart + secrets lên master
         run: |
-          ssh nguyenhieu@192.168.122.111 "mkdir -p /tmp/helm/blog-app"
-          rsync -az helm/blog-app/ nguyenhieu@192.168.122.111:/tmp/helm/blog-app/
-          rsync -az $HOME/secrets/blog-secrets-values.yaml nguyenhieu@192.168.122.111:/tmp/helm/blog-app/secrets-values.yaml
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "mkdir -p ${{ env.HELM_REMOTE_PATH }}"
+          rsync -az helm/blog-app/ ${{ env.MASTER_USER }}@${{ env.MASTER_IP }}:${{ env.HELM_REMOTE_PATH }}/
+          rsync -az ${{ env.SECRETS_LOCAL_PATH }} ${{ env.MASTER_USER }}@${{ env.MASTER_IP }}:${{ env.HELM_REMOTE_PATH }}/secrets-values.yaml
 
       - name: Helm upgrade --install
         run: |
-          ssh nguyenhieu@192.168.122.111 "
-            KUBECONFIG=/home/devops/.kube/config \
-            helm upgrade --install blog-app /tmp/helm/blog-app \
-              --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/blog-app \
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} \
+            helm upgrade --install ${{ env.APP_NAME }} ${{ env.HELM_REMOTE_PATH }} \
+              --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }} \
               --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
-              -f /tmp/helm/blog-app/secrets-values.yaml \
-              -n blog --create-namespace \
+              -f ${{ env.HELM_REMOTE_PATH }}/secrets-values.yaml \
+              -n ${{ env.NAMESPACE }} --create-namespace \
               --atomic --timeout 5m
           "
 
       - name: Verify rollout
         run: |
-          ssh nguyenhieu@192.168.122.111 "
-            KUBECONFIG=/home/devops/.kube/config \
-            kubectl rollout status deployment/blog-app -n blog --timeout=5m
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} \
+            kubectl rollout status deployment/${{ env.APP_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m
           "

@@ -3,6 +3,13 @@ name: Apply K8s Infra (Postgres + MinIO)
 on:
   workflow_dispatch:
 
+env:
+  MASTER_USER: nguyenhieu
+  MASTER_IP: 192.168.122.111
+  KUBECONFIG_PATH: /home/devops/.kube/config
+  NAMESPACE: blog
+  K8S_REMOTE_PATH: /tmp/k8s
+
 jobs:
   apply-infra:
     name: Apply Infra Manifests
@@ -14,20 +21,20 @@ jobs:
 
       - name: Copy k8s manifests lên master
         run: |
-          ssh nguyenhieu@192.168.122.111 "mkdir -p /tmp/k8s"
-          rsync -az k8s/ nguyenhieu@192.168.122.111:/tmp/k8s/
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "mkdir -p ${{ env.K8S_REMOTE_PATH }}"
+          rsync -az k8s/ ${{ env.MASTER_USER }}@${{ env.MASTER_IP }}:${{ env.K8S_REMOTE_PATH }}/
 
       - name: Apply namespace + stateful services
         run: |
-          ssh nguyenhieu@192.168.122.111 "
-            KUBECONFIG=/home/devops/.kube/config kubectl apply -f /tmp/k8s/namespace.yaml
-            KUBECONFIG=/home/devops/.kube/config kubectl apply -f /tmp/k8s/postgres/ -R
-            KUBECONFIG=/home/devops/.kube/config kubectl apply -f /tmp/k8s/minio/ -R
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/namespace.yaml
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/postgres/ -R
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/minio/ -R
           "
 
       - name: Wait for Postgres + MinIO
         run: |
-          ssh nguyenhieu@192.168.122.111 "
-            KUBECONFIG=/home/devops/.kube/config kubectl rollout status statefulset/postgres -n blog --timeout=3m
-            KUBECONFIG=/home/devops/.kube/config kubectl rollout status statefulset/minio -n blog --timeout=3m
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl rollout status statefulset/postgres -n ${{ env.NAMESPACE }} --timeout=3m
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl rollout status statefulset/minio -n ${{ env.NAMESPACE }} --timeout=3m
           "
