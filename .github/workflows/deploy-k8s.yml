@@ -1,26 +1,14 @@
-name: Deploy Blog App to Kubernetes (On-Prem)
+name: Deploy Blog App to Kubernetes
 
 on:
   push:
     branches:
       - main
 
-# ============================================================
-# Yêu cầu: self-hosted runner cài trên máy local/VM
-# vì K8s cluster dùng private IP 192.168.122.x
-# GitHub cloud runner không reach được private network
-#
-# Cài runner: GitHub repo → Settings → Actions → Runners → New self-hosted runner
-#
-# Job 1: Build  → Build Docker image amd64, push Docker Hub
-# Job 2: Deploy → Ansible SSH vào master, helm upgrade
-# ============================================================
-
 jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: self-hosted
-
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
 
@@ -42,7 +30,7 @@ jobs:
           podman push $IMAGE:latest
 
   deploy:
-    name: Deploy to K8s via Ansible
+    name: Deploy to K8s
     runs-on: self-hosted
     needs: build-and-push
 
@@ -50,17 +38,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Load secrets-values.yaml từ máy local
+      - name: Load secrets-values.yaml
         run: cp $HOME/secrets/blog-secrets-values.yaml helm/blog-app/secrets-values.yaml
 
-      - name: Install Ansible Collections
-        run: ansible-galaxy collection install -r ansible/requirements.yml
-
-      - name: Ansible helm upgrade blog-app
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+      - name: Helm upgrade --install
         run: |
-          ansible-playbook ansible/playbooks/k8s-deploy.yml \
-            -i ansible/inventory/k8s_hosts.ini \
-            -e "image_tag=${{ needs.build-and-push.outputs.image_tag }}" \
-            -e "dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}"
+          helm upgrade --install blog-app helm/blog-app \
+            --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/blog-app \
+            --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
+            -f helm/blog-app/secrets-values.yaml \
+            -n blog --create-namespace \
+            --atomic --timeout 5m
+
+      - name: Verify rollout
+        run: kubectl rollout status deployment/blog-app -n blog --timeout=5m

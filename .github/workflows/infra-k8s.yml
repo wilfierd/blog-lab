@@ -1,0 +1,25 @@
+name: Apply K8s Infra (Postgres + MinIO)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apply-infra:
+    name: Apply Infra Manifests
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Apply namespace + stateful services
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/postgres/ -R
+          kubectl apply -f k8s/minio/ -R
+
+      - name: Wait for Postgres
+        run: kubectl rollout status statefulset/postgres -n blog --timeout=3m
+
+      - name: Wait for MinIO
+        run: kubectl rollout status statefulset/minio -n blog --timeout=3m
