@@ -11,7 +11,7 @@ data:
   DB_NAME: {{ .Values.config.dbName | quote }}
   DB_USER: {{ .Values.config.dbUser | quote }}
   DB_SSLMODE: {{ .Values.config.dbSSLMode | quote }}
-AWS_ENDPOINT_URL: {{ .Values.config.awsEndpointURL | quote }}
+  AWS_ENDPOINT_URL: {{ .Values.config.awsEndpointURL | quote }}
   AWS_BUCKET_NAME: {{ .Values.config.awsBucketName | quote }}
   AWS_REGION: {{ .Values.config.awsRegion | quote }}
   GOOGLE_REDIRECT_URL: {{ .Values.config.googleRedirectURL | quote }}
