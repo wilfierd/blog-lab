@@ -34,8 +34,7 @@ config:
   dbName: blogdb
   dbUser: admins
   dbSSLMode: disable
-  redisAddr: redis.blog.svc.cluster.local:6379
-  awsEndpointURL: http://minio.blog.svc.cluster.local:9000
+awsEndpointURL: http://minio.blog.svc.cluster.local:9000
   awsBucketName: blog-uploads
   awsRegion: us-east-1              # MinIO không care về region
   googleRedirectURL: http://blog.local/auth/google/callback

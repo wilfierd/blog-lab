@@ -33,9 +33,6 @@
     - name: Apply PostgreSQL
       command: kubectl apply -f /tmp/k8s/postgres/ -R
 
-    - name: Apply Redis
-      command: kubectl apply -f /tmp/k8s/redis/ -R
-
     - name: Apply MinIO
       command: kubectl apply -f /tmp/k8s/minio/ -R
 
