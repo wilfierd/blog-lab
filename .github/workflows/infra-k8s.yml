@@ -12,14 +12,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Copy k8s manifests lên master
+        run: |
+          ssh nguyenhieu@192.168.122.111 "mkdir -p /tmp/k8s"
+          rsync -az k8s/ nguyenhieu@192.168.122.111:/tmp/k8s/
+
       - name: Apply namespace + stateful services
         run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/postgres/ -R
-          kubectl apply -f k8s/minio/ -R
+          ssh nguyenhieu@192.168.122.111 "
+            KUBECONFIG=/home/devops/.kube/config kubectl apply -f /tmp/k8s/namespace.yaml
+            KUBECONFIG=/home/devops/.kube/config kubectl apply -f /tmp/k8s/postgres/ -R
+            KUBECONFIG=/home/devops/.kube/config kubectl apply -f /tmp/k8s/minio/ -R
+          "
 
-      - name: Wait for Postgres
-        run: kubectl rollout status statefulset/postgres -n blog --timeout=3m
-
-      - name: Wait for MinIO
-        run: kubectl rollout status statefulset/minio -n blog --timeout=3m
+      - name: Wait for Postgres + MinIO
+        run: |
+          ssh nguyenhieu@192.168.122.111 "
+            KUBECONFIG=/home/devops/.kube/config kubectl rollout status statefulset/postgres -n blog --timeout=3m
+            KUBECONFIG=/home/devops/.kube/config kubectl rollout status statefulset/minio -n blog --timeout=3m
+          "

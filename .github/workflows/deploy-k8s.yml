@@ -38,17 +38,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Load secrets-values.yaml
-        run: cp $HOME/secrets/blog-secrets-values.yaml helm/blog-app/secrets-values.yaml
+      - name: Copy helm chart + secrets lên master
+        run: |
+          ssh nguyenhieu@192.168.122.111 "mkdir -p /tmp/helm/blog-app"
+          rsync -az helm/blog-app/ nguyenhieu@192.168.122.111:/tmp/helm/blog-app/
+          rsync -az $HOME/secrets/blog-secrets-values.yaml nguyenhieu@192.168.122.111:/tmp/helm/blog-app/secrets-values.yaml
 
       - name: Helm upgrade --install
         run: |
-          helm upgrade --install blog-app helm/blog-app \
-            --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/blog-app \
-            --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
-            -f helm/blog-app/secrets-values.yaml \
-            -n blog --create-namespace \
-            --atomic --timeout 5m
+          ssh nguyenhieu@192.168.122.111 "
+            KUBECONFIG=/home/devops/.kube/config \
+            helm upgrade --install blog-app /tmp/helm/blog-app \
+              --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/blog-app \
+              --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
+              -f /tmp/helm/blog-app/secrets-values.yaml \
+              -n blog --create-namespace \
+              --atomic --timeout 5m
+          "
 
       - name: Verify rollout
-        run: kubectl rollout status deployment/blog-app -n blog --timeout=5m
+        run: |
+          ssh nguyenhieu@192.168.122.111 "
+            KUBECONFIG=/home/devops/.kube/config \
+            kubectl rollout status deployment/blog-app -n blog --timeout=5m
+          "
