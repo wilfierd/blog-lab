@@ -5,9 +5,12 @@
   gather_facts: false
   vars:
     repo_root: "{{ playbook_dir }}/../.."
+    kubeconfig: ~/.kube/config
   tasks:
     - name: Label node .112 làm database node
       command: kubectl label node 192.168.122.112 role=database --overwrite
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Copy K8s manifests lên master
       synchronize:
@@ -29,35 +32,50 @@
 
     - name: Apply namespaces
       command: kubectl apply -f /tmp/k8s/namespace.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Apply namespace policies (ResourceQuota + LimitRange + NetworkPolicy)
+      command: kubectl apply -f /tmp/k8s/namespace-policies/ -R
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Apply PostgreSQL
       command: kubectl apply -f /tmp/k8s/postgres/ -R
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Apply MinIO
       command: kubectl apply -f /tmp/k8s/minio/ -R
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Chờ PostgreSQL sẵn sàng
-      command: >
-        kubectl wait --for=condition=ready pod -l app=postgres
-        -n blog --timeout=120s
+      command: kubectl wait --for=condition=ready pod -l app=postgres -n blog --timeout=120s
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Chờ MinIO sẵn sàng
-      command: >
-        kubectl wait --for=condition=ready pod -l app=minio
-        -n blog --timeout=120s
+      command: kubectl wait --for=condition=ready pod -l app=minio -n blog --timeout=120s
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Tạo bucket blog-uploads trong MinIO
-      command: >
-        kubectl run minio-init --image=minio/mc --restart=Never -n blog
-        --env="MC_HOST_minio=http://nguyenhieu:pass123@minio:9000"
-        --command -- sh -c "mc mb minio/blog-uploads --ignore-existing"
+      shell: |
+        MINIO_USER=$(kubectl get secret minio-secret -n blog -o jsonpath='{.data.MINIO_ROOT_USER}' | base64 -d)
+        MINIO_PASS=$(kubectl get secret minio-secret -n blog -o jsonpath='{.data.MINIO_ROOT_PASSWORD}' | base64 -d)
+        kubectl run minio-init-{{ ansible_date_time.epoch }} --image=minio/mc --restart=Never -n blog \
+          --env="MC_HOST_minio=http://${MINIO_USER}:${MINIO_PASS}@minio:9000" \
+          --command -- sh -c "mc mb minio/blog-uploads --ignore-existing && mc anonymous set download minio/blog-uploads" \
+          --kubeconfig={{ kubeconfig }}
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       ignore_errors: true
 
     - name: Add Helm repos
       command: "{{ item }}"
       loop:
         - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        - helm repo add grafana https://grafana.github.io/helm-charts
         - helm repo update
 
     - name: Install kube-prometheus-stack
@@ -66,15 +84,9 @@
         prometheus-community/kube-prometheus-stack
         -n monitoring --create-namespace
         -f /tmp/helm-values/kube-prometheus-stack-values.yaml
-        --timeout 10m
-
-    - name: Install loki-stack
-      command: >
-        helm upgrade --install loki-stack
-        grafana/loki-stack
-        -n monitoring
-        -f /tmp/helm-values/loki-stack-values.yaml
-        --timeout 5m
+        --timeout 10m --wait
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Install blog-app lần đầu
       command: >
@@ -82,15 +94,21 @@
         -f /tmp/helm/blog-app/secrets-values.yaml
         -n blog
         --wait --timeout 5m
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Kiểm tra pods
       command: kubectl get pods -n blog
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       register: blog_pods
     - debug:
         var: blog_pods.stdout_lines
 
     - name: Kiểm tra monitoring pods
       command: kubectl get pods -n monitoring
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       register: mon_pods
     - debug:
         var: mon_pods.stdout_lines

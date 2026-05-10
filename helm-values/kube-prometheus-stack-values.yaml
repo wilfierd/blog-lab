@@ -1,24 +1,41 @@
 grafana:
-  adminPassword: changeme123   # thay bằng password thật
+  adminPassword: changeme123
+
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 300Mi
 
   ingress:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - grafana.local           # thay bằng domain thật
+      - grafana.local
 
   sidecar:
     dashboards:
-      enabled: true             # tự load ConfigMap có label grafana_dashboard="1"
+      enabled: true
 
-  additionalDataSources:
-    - name: Loki
-      type: loki
-      url: http://loki-stack:3100
-      access: proxy
 
 alertmanager:
   alertmanagerSpec:
+    nodeSelector:
+      node-role.kubernetes.io/worker: ""
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
     storage:
       volumeClaimTemplate:
         spec:
@@ -60,14 +77,26 @@ alertmanager:
 
 prometheus:
   prometheusSpec:
-    retention: 30d
+    nodeSelector:
+      node-role.kubernetes.io/worker: ""
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1.5Gi
+
+    retention: 15d
     storageSpec:
       volumeClaimTemplate:
         spec:
           storageClassName: local-path
           resources:
             requests:
-              storage: 10Gi
+              storage: 5Gi
+
     additionalScrapeConfigs:
       - job_name: blog-app
         kubernetes_sd_configs:
@@ -85,6 +114,39 @@ prometheus:
             target_label: namespace
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
+
+prometheusOperator:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+kube-state-metrics:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
 
 additionalPrometheusRulesMap:
   blog-app-rules:

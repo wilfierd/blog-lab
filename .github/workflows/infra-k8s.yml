@@ -6,7 +6,7 @@ on:
 env:
   MASTER_USER: nguyenhieu
   MASTER_IP: 192.168.122.111
-  KUBECONFIG_PATH: /home/devops/.kube/config
+  KUBECONFIG_PATH: ~/.kube/config
   NAMESPACE: blog
   K8S_REMOTE_PATH: /tmp/k8s
 
@@ -24,10 +24,11 @@ jobs:
           ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "mkdir -p ${{ env.K8S_REMOTE_PATH }}"
           rsync -az k8s/ ${{ env.MASTER_USER }}@${{ env.MASTER_IP }}:${{ env.K8S_REMOTE_PATH }}/
 
-      - name: Apply namespace + stateful services
+      - name: Apply namespace + policies + stateful services
         run: |
           ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "
             KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/namespace.yaml
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/namespace-policies/ -R
             KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/postgres/ -R
             KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/minio/ -R
           "

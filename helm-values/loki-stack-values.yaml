@@ -1,8 +1,20 @@
 loki:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
   persistence:
     enabled: true
     storageClassName: local-path
-    size: 5Gi
+    size: 2Gi
+
   config:
     limits_config:
       retention_period: 168h
@@ -12,6 +24,14 @@ loki:
       per_stream_rate_limit_burst: 40MB
 
 promtail:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
   config:
     clients:
       - url: http://loki-stack:3100/loki/api/v1/push
@@ -24,7 +44,7 @@ promtail:
             - docker: {}
           relabel_configs:
             - source_labels: [__meta_kubernetes_namespace]
-              regex: blog|monitoring
+              regex: blog|monitoring|windgo
               action: keep
             - source_labels: [__meta_kubernetes_pod_label_app]
               target_label: app

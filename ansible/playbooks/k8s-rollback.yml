@@ -6,27 +6,38 @@
   gather_facts: false
   vars:
     namespace: blog
+    kubeconfig: ~/.kube/config
 
   tasks:
     - name: Xem helm history trước khi rollback
       command: helm history blog-app -n {{ namespace }}
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       register: history
     - debug:
         var: history.stdout_lines
 
     - name: Rollback về revision chỉ định
       command: helm rollback blog-app {{ helm_revision }} -n {{ namespace }} --wait
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       when: helm_revision is defined
 
     - name: Rollback 1 bước (revision trước)
       command: helm rollback blog-app -n {{ namespace }} --wait
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       when: helm_revision is not defined
 
     - name: Chờ deployment ổn định
       command: kubectl rollout status deployment/blog-app -n {{ namespace }} --timeout=300s
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
 
     - name: Kiểm tra pods sau rollback
       command: kubectl get pods -n {{ namespace }}
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
       register: pods
     - debug:
         var: pods.stdout_lines
