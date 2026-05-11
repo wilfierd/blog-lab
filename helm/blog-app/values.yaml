@@ -29,12 +29,12 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
 
 config:
-  dbHost: postgres.blog.svc.cluster.local
+  dbHost: postgres.data.svc.cluster.local
   dbPort: "5432"
   dbName: blogdb
   dbUser: admins
   dbSSLMode: disable
-  awsEndpointURL: http://minio.blog.svc.cluster.local:9000
+  awsEndpointURL: http://minio.data.svc.cluster.local:9000
   awsBucketName: blog-uploads
   awsRegion: us-east-1              # MinIO không care về region
   googleRedirectURL: http://blog.local/auth/google/callback

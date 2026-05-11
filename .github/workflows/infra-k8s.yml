@@ -29,13 +29,12 @@ jobs:
           ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "
             KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/namespace.yaml
             KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/namespace-policies/ -R
-            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/postgres/ -R
-            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/minio/ -R
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl apply -f ${{ env.K8S_REMOTE_PATH }}/data/ -R
           "
 
       - name: Wait for Postgres + MinIO
         run: |
           ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} "
-            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl rollout status statefulset/postgres -n ${{ env.NAMESPACE }} --timeout=3m
-            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl rollout status statefulset/minio -n ${{ env.NAMESPACE }} --timeout=3m
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl rollout status statefulset/postgres -n data --timeout=3m
+            KUBECONFIG=${{ env.KUBECONFIG_PATH }} kubectl rollout status statefulset/minio -n data --timeout=3m
           "
