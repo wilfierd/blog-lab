@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  MASTER_USER: devops
+  MASTER_USER: nguyenhieu
   MASTER_IP: 192.168.122.111
   KUBECONFIG_PATH: /home/devops/.kube/config
   NAMESPACE: blog
