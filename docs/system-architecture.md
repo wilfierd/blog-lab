@@ -119,7 +119,7 @@ windgo               → App khác
 |---|---|---|---|---|---|
 | blog | 2 core | 4 core | 2Gi | 4Gi | 20 |
 | data | 1 core | 2 core | 1Gi | 2Gi | 10 |
-| monitoring | 4 core | 8 core | 6Gi | 12Gi | 40 |
+| monitoring | 1 core | 2 core | 2Gi | 3Gi | 20 |
 | windgo | 2 core | 4 core | 2Gi | 4Gi | 20 |
 
 ### 4.3 LimitRange (default cho container không khai báo)
@@ -128,7 +128,7 @@ windgo               → App khác
 |---|---|---|---|---|
 | blog | 50m | 200m | 64Mi | 256Mi |
 | data | 100m | 500m | 256Mi | 512Mi |
-| monitoring | 100m | 500m | 128Mi | 512Mi |
+| monitoring | 50m | 200m | 64Mi | 256Mi |
 
 ### 4.4 NetworkPolicy
 
