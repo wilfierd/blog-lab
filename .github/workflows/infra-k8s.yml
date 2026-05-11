@@ -6,7 +6,7 @@ on:
 env:
   MASTER_USER: nguyenhieu
   MASTER_IP: 192.168.122.111
-  KUBECONFIG_PATH: ~/.kube/config
+  KUBECONFIG_PATH: /home/nguyenhieu/.kube/config
   NAMESPACE: blog
   K8S_REMOTE_PATH: /tmp/k8s
 
