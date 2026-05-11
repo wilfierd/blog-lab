@@ -15,6 +15,7 @@ secrets-values.yaml
 
 # Keep: .terraform.lock.hcl (pins provider versions — should be committed)
 *.md
+!docs/*.md
 monitoring-local/logs/blog-app.log
 blog-local
 blog-app-bin
