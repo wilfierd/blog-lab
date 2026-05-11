@@ -16,7 +16,7 @@ resources:
 hpa:
   minReplicas: 2
   maxReplicas: 4
-  cpuUtilization: 70
+  cpuUtilization: 50
 
 service:
   port: 8080
