@@ -6,9 +6,9 @@ on:
       - main
 
 env:
-  MASTER_USER: nguyenhieu
+  MASTER_USER: devops
   MASTER_IP: 192.168.122.111
-  KUBECONFIG_PATH: /home/nguyenhieu/.kube/config
+  KUBECONFIG_PATH: /home/devops/.kube/config
   NAMESPACE: blog
   APP_NAME: blog-app
   HELM_REMOTE_PATH: /tmp/helm/blog-app
@@ -55,19 +55,18 @@ jobs:
 
       - name: Helm upgrade --install
         run: |
-          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} bash << 'EOF'
-            export KUBECONFIG=${{ env.KUBECONFIG_PATH }}
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} \
             helm upgrade --install ${{ env.APP_NAME }} ${{ env.HELM_REMOTE_PATH }} \
+              --kubeconfig ${{ env.KUBECONFIG_PATH }} \
               --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }} \
               --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
               -f ${{ env.HELM_REMOTE_PATH }}/secrets-values.yaml \
               -n ${{ env.NAMESPACE }} --create-namespace \
               --rollback-on-failure --timeout 5m
-          EOF
 
       - name: Verify rollout
         run: |
-          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} bash << 'EOF'
-            export KUBECONFIG=${{ env.KUBECONFIG_PATH }}
-            kubectl rollout status deployment/${{ env.APP_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m
-          EOF
+          ssh ${{ env.MASTER_USER }}@${{ env.MASTER_IP }} \
+            kubectl --kubeconfig ${{ env.KUBECONFIG_PATH }} \
+              rollout status deployment/${{ env.APP_NAME }} \
+              -n ${{ env.NAMESPACE }} --timeout=5m

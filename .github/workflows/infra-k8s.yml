@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
 
 env:
-  MASTER_USER: nguyenhieu
+  MASTER_USER: devops
   MASTER_IP: 192.168.122.111
-  KUBECONFIG_PATH: /home/nguyenhieu/.kube/config
+  KUBECONFIG_PATH: /home/devops/.kube/config
   NAMESPACE: blog
   K8S_REMOTE_PATH: /tmp/k8s
 
