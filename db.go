@@ -1,5 +1,11 @@
 package main
 
+import (
+	"log/slog"
+
+	"golang.org/x/crypto/bcrypt"
+)
+
 func migrate() {
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
@@ -45,11 +51,16 @@ func seed() {
 			continue
 		}
 		avatar := "https://ui-avatars.com/api/?name=" + u.name
+		hashed, err := bcrypt.GenerateFromPassword([]byte(u.password), bcrypt.DefaultCost)
+		if err != nil {
+			slog.Error("seed: failed to hash password", "username", u.username, "err", err)
+			continue
+		}
 		var userID int
 		db.QueryRow(`INSERT INTO users (google_id, name, email, avatar, username, password_hash, role)
 			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
 			u.googleID, u.name, u.username+"@local.com",
-			avatar, u.username, u.password, u.role,
+			avatar, u.username, string(hashed), u.role,
 		).Scan(&userID)
 		if u.role == "dev" {
 			db.Exec(`INSERT INTO posts (user_id, title, content) VALUES
