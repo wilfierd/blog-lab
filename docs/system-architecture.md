@@ -211,9 +211,25 @@ PVC được tạo dưới dạng thư mục trực tiếp trên disk của node
 ```
 
 **Hạn chế của local-path:**
-- PVC bị pin vào 1 node cụ thể (nodeAffinity) — pod không thể di chuyển sang node khác
-- Không có replication — node chết = mất data
-- Không hỗ trợ `ReadWriteMany`
+- PVC bị pin vào 1 node cụ thể (nodeAffinity) — pod không thể reschedule sang node khác
+- Node chết = downtime đến khi bật VM lại (data vẫn nguyên vì nằm trên disk rời vdb)
+- Disk rời hỏng = mất data nếu không có backup định kỳ
+- Chỉ hỗ trợ `ReadWriteOnce` — 1 pod mount tại 1 thời điểm
+
+**Tại sao postgres/minio phải giữ `replicas: 1`:**
+- PVC mode `ReadWriteOnce`: Pod thứ 2 sẽ Pending mãi vì không mount được PVC đang bị Pod 1 giữ
+- Postgres dùng file lock: nếu 2 pod cùng ghi vào 1 ổ đĩa → data corrupt ngay lập tức
+- Scale DB theo chiều ngang đòi hỏi replication engine riêng (Patroni, Citus...) + storage chia sẻ (Ceph, NFS) — không có trong setup này
+
+**Mức HA thực tế của namespace `data`:**
+```
+postgres/minio crash hoặc OOMKilled
+    → K8s tự xóa pod cũ, tạo pod mới
+    → mount lại đúng PVC trên disk rời
+    → downtime ~30s–1 phút
+    → data nguyên vẹn
+```
+Đây là **pod-level self-healing**, không phải HA thật. Chấp nhận được với homelab.
 
 ### 6.2 PVC Summary
 
